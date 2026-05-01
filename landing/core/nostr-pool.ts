@@ -152,17 +152,17 @@ function broadcastStatus(): void {
 function matchesFilters(event: NostrEvent, filters: NostrFilter[]): boolean {
   for (const f of filters) {
     let match = true;
-    if (f.ids && !f.ids.some(id => event.id.startsWith(id))) match = false;
-    if (f.authors && !f.authors.some(a => event.pubkey.startsWith(a))) match = false;
-    if (f.kinds && !f.kinds.includes(event.kind)) match = false;
-    if (f.since && event.created_at < f.since) match = false;
-    if (f.until && event.created_at > f.until) match = false;
+    if (f.ids && !f.ids.some(id => (event.id as string).startsWith(id))) match = false;
+    if (f.authors && !f.authors.some(a => (event.pubkey as string).startsWith(a))) match = false;
+    if (f.kinds && !f.kinds.includes(event.kind as number)) match = false;
+    if (f.since && (event.created_at as number) < f.since) match = false;
+    if (f.until && (event.created_at as number) > f.until) match = false;
     // Tag filters (#e, #p, #t, etc.)
     for (const key of Object.keys(f)) {
       if (key.startsWith('#') && key.length === 2) {
         const tagName = key[1];
-        const vals = f[key];
-        const eventTags = (event.tags || []).filter(t => t[0] === tagName).map(t => t[1]);
+        const vals = f[key] as string[];
+        const eventTags = ((event.tags as string[][] | undefined) || []).filter(t => t[0] === tagName).map(t => t[1]);
         if (!vals.some(v => eventTags.includes(v))) match = false;
       }
     }

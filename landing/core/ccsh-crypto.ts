@@ -241,14 +241,14 @@ function deriveKeyRelay(shared: Uint8Array): Uint8Array { return sha256(concat(s
 
 async function aesWrap(data: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   const nonce = crypto.getRandomValues(new Uint8Array(12));
-  const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['encrypt']);
+  const ck = await crypto.subtle.importKey('raw', key as unknown as ArrayBuffer, { name: 'AES-GCM' }, false, ['encrypt']);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce as unknown as ArrayBuffer, tagLength: 128 }, ck, data as unknown as ArrayBuffer));
   return concat(nonce, ct);
 }
 
 async function aesUnwrap(blob: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   if (blob.length < 12) throw new Error('blob too short');
-  const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['decrypt']);
+  const ck = await crypto.subtle.importKey('raw', key as unknown as ArrayBuffer, { name: 'AES-GCM' }, false, ['decrypt']);
   return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12) as unknown as ArrayBuffer, tagLength: 128 }, ck, blob.slice(12) as unknown as ArrayBuffer));
 }
 

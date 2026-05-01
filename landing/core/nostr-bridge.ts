@@ -177,7 +177,7 @@ export function nostrUnsubscribe(subId: string | null | undefined): void {
 }
 
 export function nostrPublish(event: NostrEvent, onOk?: OkCallback): void {
-  if (onOk && event.id) _okCallbacks.set(event.id, onOk);
+  if (onOk && event.id) _okCallbacks.set(event.id as string, onOk);
   if (_mode === 'fallback') { _fbPublish(event); return; }
   if (_mode === 'worker') { _port.postMessage({ type: 'publish', event }); }
 }

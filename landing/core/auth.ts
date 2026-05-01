@@ -293,7 +293,7 @@ export async function connectLedger(onProgress?: (msg: string) => void): Promise
 
       // Check if address has been used
       const script = new Uint8Array([0x76, 0xa9, 0x14, ...h160, 0x88, 0xac]);
-      const sh = Array.from(sha256(script)).reverse().map(b => b.toString(16).padStart(2, '0')).join('');
+      const sh = Array.from(sha256(script)).reverse().map((b: number) => b.toString(16).padStart(2, '0')).join('');
       try {
         const hist = await (window as any)._fvCall('blockchain.scripthash.get_history', [sh]) || [];
         const utxos = await (window as any)._fvCall('blockchain.scripthash.listunspent', [sh]) || [];
