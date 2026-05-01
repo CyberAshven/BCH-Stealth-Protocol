@@ -1,0 +1,11 @@
+# Exclude compiled binaries from GitHub Linguist language detection
+indexer/dist/* linguist-detectable=false
+indexer/dist/* binary
+
+# Exclude vendored JS libraries
+landing/lib/*.js linguist-vendored
+
+# Exclude build artifacts
+*.exe linguist-detectable=false
+desktop/dist/** linguist-detectable=false
+dist/** linguist-detectable=false
