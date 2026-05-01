@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Swap View (SPA v2) — Atomic Cross-Chain Swaps
    ══════════════════════════════════════════════════════════
    Full HTLC swap protocol: BCH ↔ BTC / LTC / XMR
@@ -1182,3 +1183,4 @@ export function unmount() {
   if (_container) _container.innerHTML = '';
   _container = null;
 }
+

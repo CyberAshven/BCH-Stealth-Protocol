@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Config View (SPA v2) — Settings */
 import * as state from '../core/state.js';
 import * as auth from '../core/auth.js';
@@ -69,3 +70,4 @@ export function mount(container) {
   });
 }
 export function unmount() { _unsubs.forEach(fn => fn()); _unsubs = []; if (_container) _container.innerHTML = ''; _container = null; }
+

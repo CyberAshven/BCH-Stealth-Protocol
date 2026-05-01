@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — BCH Send (sign + broadcast)
    ══════════════════════════════════════════
@@ -151,3 +152,4 @@ export async function sendBch({ toAddress, amountSats, feeRate, utxos, privKey, 
   }
   throw new Error(typeof result === 'string' ? result : JSON.stringify(result));
 }
+

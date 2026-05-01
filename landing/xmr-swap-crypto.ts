@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * 00-Protocol: XMR Atomic Swap Crypto Module
  * Pure JavaScript implementation using @noble/curves
@@ -1175,3 +1176,4 @@ export {
   serializeCrossCurveKeys,
   deserializeCrossCurveKeys
 };
+

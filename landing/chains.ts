@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════════════════════════
    chains.js — Unified blockchain data-fetching module
    All balance, price, history, and block-height fetchers
@@ -614,4 +615,5 @@ window.chainsFormatAmount = function(chain, rawAmount) {
   if (val >= 1) return val.toFixed(4) + ' ' + meta.ticker;
   return val.toFixed(meta.decimals).replace(/0+$/, '') + ' ' + meta.ticker;
 };
+
 

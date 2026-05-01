@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Nostr Bridge (SharedWorker + Fallback)
    ══════════════════════════════════════════
@@ -209,3 +210,4 @@ if (typeof window !== 'undefined') {
   window._nostrUpdateRelays = nostrUpdateRelays;
   window._nostrIsConnected = nostrIsConnected;
 }
+

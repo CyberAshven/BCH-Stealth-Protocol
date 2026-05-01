@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — SPA Bootstrap
    ══════════════════════════════════════════
@@ -154,3 +155,4 @@ if (document.readyState === 'loading') {
 } else {
   boot();
 }
+

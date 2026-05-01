@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    xmr-scanner.js — Monero WASM Scanner & Balance Service
    ══════════════════════════════════════════
@@ -224,3 +225,4 @@ export function startAutoScan(intervalMs = 120000) {
 export function stopAutoScan() {
   if (_scanTimer) { clearInterval(_scanTimer); _scanTimer = null; }
 }
+

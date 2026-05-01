@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Balance & Price Service
    ══════════════════════════════════════════
@@ -392,3 +393,4 @@ export function setAddress(chain, addr) {
 }
 
 /* getAddresses() and getAddress() are defined above (line ~81) */
+

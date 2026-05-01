@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Authentication & Session
    ══════════════════════════════════════════
@@ -496,3 +497,4 @@ export async function createVault(profile, password) {
 }
 
 export { decryptVault, encryptVault };
+

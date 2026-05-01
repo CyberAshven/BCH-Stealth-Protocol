@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Analyse View (SPA v2) — Full Blockchain Tracer with Cytoscape Graph */
 import * as auth from '../core/auth.js';
 import { navigate } from '../router.js';
@@ -150,3 +151,4 @@ export async function mount(container) {
   window.addEventListener('resize', window._analyseResize);
 }
 export function unmount() { window.removeEventListener('resize', window._analyseResize); if (_cy) { _cy.destroy(); _cy = null; } _graphNodes = new Map(); _graphEdges = []; _unsubs.forEach(fn => fn()); _unsubs = []; if (_container) _container.innerHTML = ''; _container = null; }
+

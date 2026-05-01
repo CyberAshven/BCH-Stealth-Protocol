@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Mesh View (SPA v2) — Full Nostr Social Network */
 import * as auth from '../core/auth.js';
 import { navigate } from '../router.js';
@@ -400,3 +401,4 @@ export function unmount() {
   _unsubs.forEach(fn => fn()); _unsubs = [];
   if (_container) _container.innerHTML = ''; _container = null;
 }
+

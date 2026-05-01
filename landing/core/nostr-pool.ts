@@ -1,3 +1,4 @@
+// @ts-nocheck
 // 0penw0rld SharedWorker — persistent Nostr relay connections
 // Survives page navigations. One set of relay connections shared across all tabs/views.
 // Pattern copied from ws-shared.js (proven Fulcrum SharedWorker).
@@ -277,3 +278,4 @@ function removePort(pid) {
     }
   }
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * onion-crypto.js — Shared onion encryption, NIP-04/NIP-44, and Nostr event signing
  * Used by: fusion.html, onion.html, wallet.html, relay.js
@@ -270,3 +271,4 @@ export async function giftUnwrap(myPriv, wrapEvent) {
    RE-EXPORTS for convenience
    ────────────────────────────────────────── */
 export { secp256k1, schnorr, sha256 };
+

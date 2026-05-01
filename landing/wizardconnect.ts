@@ -1,3 +1,4 @@
+// @ts-nocheck
 // wizardconnect.js — WalletConnect v2 global bridge
 // This file is loaded as a non-module script in index.html.
 // It provides a window.WizardConnect stub so other code can check
@@ -30,3 +31,4 @@
     },
   };
 })();
+

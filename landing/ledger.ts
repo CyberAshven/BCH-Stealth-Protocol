@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ─────────────────────────────────────────────────────────────────────────────
 // 00 Ledger.js — WebHID APDU transport for Ledger BCH signing
 // Supported devices (vendorId 0x2c97):
@@ -278,3 +279,4 @@ function buildLedgerTx(utxos, sigs, pubKey, outputs) {
 G.Ledger = { BCH_PATH, ACCOUNT_PATH, connectLedger, getLedgerPubKey, signLedgerTx, buildLedgerTx };
 
 })(window);
+

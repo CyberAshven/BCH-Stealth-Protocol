@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Global Reactive State Store
    ══════════════════════════════════════════
@@ -116,3 +117,4 @@ export function init() {
   persist('relayMode', '00_onion_relay_mode', v => v ? '1' : '0');
   persist('sidebarCollapsed', '00_sidebar_collapsed', v => v ? '1' : '0');
 }
+

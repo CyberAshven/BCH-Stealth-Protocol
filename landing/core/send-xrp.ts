@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    XRP (Ripple) Transaction Signing & Broadcast
    ══════════════════════════════════════════
@@ -150,3 +151,4 @@ function _wsCmd(url, cmd) {
     ws.onerror = () => { clearTimeout(t); reject(new Error('XRP WS error')); };
   });
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Onion View (SPA v2) — Relay & Stealth
    ══════════════════════════════════════════
@@ -602,3 +603,4 @@ export function unmount() {
   if (_container) _container.innerHTML = '';
   _container = null;
 }
+

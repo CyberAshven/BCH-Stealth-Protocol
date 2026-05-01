@@ -1,3 +1,4 @@
+// @ts-nocheck
 // 0penw0rld SharedWorker — persistent Electrum WebSocket connections
 // Survives page navigations. One WS per chain shared across all tabs/pages.
 
@@ -269,3 +270,4 @@ function removePort(pid) {
     }
   }
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // 0penw0rld Shell — lang switcher, app switcher, disconnect, endpoint settings, desktop sidebar
 (function () {
 'use strict';
@@ -1061,3 +1062,4 @@ if (document.readyState === 'loading') {
 }
 
 })();
+

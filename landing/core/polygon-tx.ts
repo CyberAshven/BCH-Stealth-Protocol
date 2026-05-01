@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    Polygon Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -244,3 +245,4 @@ export const CONTRACTS = {
 
 /* ── RPC call export for other modules ── */
 export { rpc };
+

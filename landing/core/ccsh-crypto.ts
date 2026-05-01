@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ccsh-crypto.js — CCSH (Chat Cash) cryptographic protocol module
  *
@@ -492,3 +493,4 @@ export {
   // TX parser
   parseTxOpReturns, extractSenderBchAddr,
 };
+

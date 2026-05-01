@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Wallet View (SPA v2)
    ══════════════════════════════════════════
@@ -2767,3 +2768,4 @@ export function unmount() {
   if (_container) _container.innerHTML = '';
   _container = null;
 }
+

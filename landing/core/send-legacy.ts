@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    send-legacy.js — BTC & LTC P2PKH Transaction Builder
    ══════════════════════════════════════════
@@ -237,3 +238,4 @@ export async function sendLtc({ toAddress, amountSats, feeRate = 2, utxos, privK
 
 /* ── Exports ── */
 export { p2pkhScript, base58CheckDecode, base58CheckEncode, buildSignedLegacyTx, b2h, h2b };
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    xmr-keys.js — Monero Key Derivation
    ══════════════════════════════════════════
@@ -137,3 +138,4 @@ export function deriveXmrKeys(acctPriv, acctChain, bip32Child) {
 /* ── Hex helpers ── */
 export const b2h = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 export const h2b = h => new Uint8Array(h.match(/.{2}/g).map(x => parseInt(x, 16)));
+

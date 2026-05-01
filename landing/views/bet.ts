@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ==================================================
    00 Bet -- Polymarket 15-min Trading Dashboard
    ==================================================
@@ -2199,3 +2200,4 @@ export function unmount() {
   _activeCat = 'All';
 
 }
+

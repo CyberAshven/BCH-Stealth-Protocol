@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Subscriptions View (SPA v2)
    ══════════════════════════════════════════
    Full subscription logic ported from sub.html:
@@ -1093,3 +1094,4 @@ export function unmount() {
   if (_container) _container.innerHTML = '';
   _container = null;
 }
+

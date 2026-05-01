@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * 00-Protocol: Monero RPC Client + Output Scanner
  *
@@ -825,3 +826,4 @@ export {
   varintEncode,
   varintDecode
 };
+

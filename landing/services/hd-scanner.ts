@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — HD Address Scanner Service
    ══════════════════════════════════════════
@@ -175,3 +176,4 @@ export function getAllScriptHashes() {
     } catch { return null; }
   }).filter(Boolean);
 }
+

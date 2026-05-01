@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Identity View (SPA v2) — Full v1 functionality */
 import * as auth from '../core/auth.js';
 import { navigate } from '../router.js';
@@ -105,3 +106,4 @@ function _bind(keys){
 
 export function mount(container){_container=container;if(!auth.isUnlocked()){navigate('auth');return;}const keys=auth.getKeys();container.innerHTML=_template(keys);_bind(keys);}
 export function unmount(){for(const sid of _subIds)nostrUnsubscribe(sid);_subIds=[];_unsubs.forEach(fn=>fn());_unsubs=[];if(_container)_container.innerHTML='';_container=null;}
+

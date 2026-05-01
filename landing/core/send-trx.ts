@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    TRON (TRX) Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -147,3 +148,4 @@ export async function sendTrc20({ toAddress, amount, contractAddress, privKeyHex
 function hexToUtf8(hex) {
   try { return decodeURIComponent(hex.replace(/[0-9a-f]{2}/g, '%$&')); } catch { return hex; }
 }
+

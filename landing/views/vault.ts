@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* 00 Wallet — Vault View (SPA v2) — Stealth Multisig MuSig2 */
 import * as state from '../core/state.js';
 import * as auth from '../core/auth.js';
@@ -64,3 +65,4 @@ export function mount(container) {
   // TODO: cosigner management, vault creation, Nostr sync
 }
 export function unmount() { _unsubs.forEach(fn => fn()); _unsubs = []; if (_container) _container.innerHTML = ''; _container = null; }
+

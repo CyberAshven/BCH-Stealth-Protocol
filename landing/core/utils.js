@@ -1,4 +1,4 @@
-import { sha256 } from '../lib/noble-hashes.js';
+import { sha256 } from "../lib/noble-hashes.js";
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 function u32LE(n) {
@@ -95,5 +95,3 @@ export {
   utf8,
   writeVarint
 };
-
-

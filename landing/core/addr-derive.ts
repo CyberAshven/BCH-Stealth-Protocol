@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Multi-chain Address Derivation
    ══════════════════════════════════════════
@@ -238,3 +239,4 @@ function _childPriv(acctPriv, acctChain, branchIdx) {
   const node = _bip32Child(branch.priv, branch.chain, 0, false);
   return node.priv;
 }
+

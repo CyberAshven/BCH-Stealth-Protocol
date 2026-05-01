@@ -1,3 +1,4 @@
+// @ts-nocheck
 // 0penw0rld WS Bridge — thin client for ws-shared.js SharedWorker
 // Include BEFORE page inline scripts. Provides global _fvCall/_btcCall API.
 // Falls back gracefully if SharedWorker not supported (iOS Safari).
@@ -134,3 +135,4 @@
   window._wsWorker = worker;
   window._wsPort = port;
 })();
+

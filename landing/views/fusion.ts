@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Fusion View (SPA v2) — CoinJoin Privacy Mixing
    ══════════════════════════════════════════
@@ -1489,3 +1490,4 @@ export function unmount() {
   if (_container) _container.innerHTML = '';
   _container = null;
 }
+

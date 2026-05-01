@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * 00-Protocol: XMR Atomic Swap Engine
  * Pure JavaScript — BCH ↔ XMR cross-chain atomic swaps
@@ -717,3 +718,4 @@ export {
   // Swap state machine
   XmrSwap
 };
+

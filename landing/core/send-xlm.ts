@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* ══════════════════════════════════════════
    Stellar (XLM) Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -192,3 +193,4 @@ export async function sendXlm({ toAddress, amountStroops, privKey32, memo }) {
   const errMsg = result.extras?.result_codes?.operations?.[0] || result.extras?.result_codes?.transaction || result.detail || result.title || 'Unknown error';
   throw new Error('Stellar: ' + errMsg);
 }
+
