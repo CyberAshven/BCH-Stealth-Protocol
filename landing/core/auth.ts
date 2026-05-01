@@ -61,7 +61,7 @@ const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
 /* PBKDF2 200,000 iterations (matches v1) */
 
 async function _pbkdf2Key(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const km = await crypto.subtle.importKey('raw', utf8(password), 'PBKDF2', false, ['deriveKey']);
+  const km = await crypto.subtle.importKey('raw', utf8(password) as unknown as ArrayBuffer, 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', hash: 'SHA-256', salt: salt as unknown as ArrayBuffer, iterations: 200000 },
     km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
@@ -79,7 +79,7 @@ async function encryptVault(profile: Profile, password: string): Promise<string>
   const salt = rand(16);
   const iv = rand(12);
   const key = await _pbkdf2Key(password, salt);
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, key, utf8(JSON.stringify(profile)));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, key, utf8(JSON.stringify(profile)) as unknown as ArrayBuffer);
   return JSON.stringify({ v: 1, salt: b2h(salt), iv: b2h(iv), data: b2h(new Uint8Array(ct)) });
 }
 
