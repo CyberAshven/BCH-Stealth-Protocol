@@ -10,7 +10,9 @@
   }
   window._wsSharedWorkerAvailable = true;
 
-  var worker = new SharedWorker('/ws-shared.js', { name: '00-electrum' });
+  // Resolve path relative to current page — works in both browser and Electron (file:// protocol)
+  var _wsUrl = typeof location !== 'undefined' ? new URL('ws-shared.js', location.href).href : '/ws-shared.js';
+  var worker = new SharedWorker(_wsUrl, { name: '00-electrum' });
   var port = worker.port;
   port.start();
 
@@ -26,7 +28,7 @@
   var _00ep = window._00ep || {};
   var bchServers = _00ep.fulcrum ||
     (function() { try { return JSON.parse(localStorage.getItem('00_ep_fulcrum')); } catch(e) { return null; } })() ||
-    ['wss://bch.imaginary.cash:50004','wss://electroncash.de:50004','wss://bch.loping.net:50004'];
+    ['wss://bch.imaginary.cash:50004','wss://bch.loping.net:50004','wss://bch.soul-dev.com:50004','wss://electron.jochen-hoenicke.de:51004'];
   var btcServers = _00ep.btc_electrum ||
     (function() { try { return JSON.parse(localStorage.getItem('00_ep_btc_electrum')); } catch(e) { return null; } })() ||
     ['wss://e2.keff.org:50004','wss://fulcrum.grey.pw:50004','wss://btc.electroncash.dk:50004','wss://electrum.petrkr.net:50004','wss://bitcoinserver.nl:50004','wss://mempool.8333.mobi:50004'];

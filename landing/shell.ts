@@ -99,7 +99,7 @@ function isConnected() {
 
 // ── Endpoint defaults & config ────────────────────────────────
 const EP_DEFAULTS = {
-  fulcrum:      ['wss://bch.imaginary.cash:50004','wss://electroncash.de:50004','wss://bch.loping.net:50004'],
+  fulcrum:      ['wss://bch.imaginary.cash:50004','wss://bch.loping.net:50004','wss://bch.soul-dev.com:50004','wss://electron.jochen-hoenicke.de:51004'],
   btc_electrum: ['wss://e2.keff.org:50004','wss://fulcrum.grey.pw:50004','wss://btc.electroncash.dk:50004','wss://electrum.petrkr.net:50004','wss://bitcoinserver.nl:50004','wss://mempool.8333.mobi:50004'],
   relays:       ['wss://relay.damus.io','wss://nos.lol','wss://relay.primal.net','wss://relay.snort.social'],
   eth_rpc:  'https://ethereum-rpc.publicnode.com',
