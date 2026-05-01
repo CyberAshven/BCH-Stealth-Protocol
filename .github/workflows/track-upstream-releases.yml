@@ -31,13 +31,14 @@ jobs:
         with:
           script: |
             const tag = '${{ steps.upstream.outputs.tag }}'
-            const issues = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: 'upstream-release',
               state: 'all',
+              per_page: 100,
             })
-            const exists = issues.data.some(i => i.title.includes(tag))
+            const exists = issues.some(i => i.title.includes(tag))
             core.setOutput('exists', exists ? 'true' : 'false')
 
       - name: Open tracking issue for new release
@@ -48,21 +49,30 @@ jobs:
             const tag = '${{ steps.upstream.outputs.tag }}'
             const url = '${{ steps.upstream.outputs.url }}'
             const body = `${{ steps.upstream.outputs.body }}`
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Upstream release: BCH-Stealth-Protocol ${tag}`,
-              labels: ['upstream-release'],
-              body: [
-                `A new release of [BCH-Stealth-Protocol](https://github.com/00-Protocol/BCH-Stealth-Protocol) is available.`,
-                ``,
-                `**Tag:** \`${tag}\``,
-                `**Release:** ${url}`,
-                ``,
-                `### Release notes`,
-                body,
-                ``,
-                `---`,
-                `_This issue was opened automatically by the upstream release tracker._`,
-              ].join('\n'),
-            })
+            try {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Upstream release: BCH-Stealth-Protocol ${tag}`,
+                labels: ['upstream-release'],
+                body: [
+                  `A new release of [BCH-Stealth-Protocol](https://github.com/00-Protocol/BCH-Stealth-Protocol) is available.`,
+                  ``,
+                  `**Tag:** \`${tag}\``,
+                  `**Release:** ${url}`,
+                  ``,
+                  `### Release notes`,
+                  body,
+                  ``,
+                  `---`,
+                  `_This issue was opened automatically by the upstream release tracker._`,
+                ].join('\n'),
+              })
+            } catch (err) {
+              // If another run creates it concurrently, don't fail the workflow.
+              if (err.status === 422) {
+                core.info(`Tracking issue already exists for ${tag}; skipping.`)
+              } else {
+                throw err
+              }
+            }
