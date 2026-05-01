@@ -1,6 +1,6 @@
 const relays = {};
 let relayUrls = [];
-let portId = 0;
+let _portId = 0;
 const ports = /* @__PURE__ */ new Map();
 const subscriptions = /* @__PURE__ */ new Map();
 let subIdCounter = 0;
@@ -53,12 +53,12 @@ function connectRelay(url) {
         addSeen(dedupKey);
         for (const [subId, sub] of subscriptions) {
           if (sub.relaySubId === relaySubId) {
-            const port = ports.get(sub.portId);
+            const port = ports.get(sub._portId);
             if (port) {
               try {
                 port.postMessage({ type: "event", subId, event });
               } catch {
-                ports.delete(sub.portId);
+                ports.delete(sub._portId);
               }
             }
           }
@@ -69,12 +69,12 @@ function connectRelay(url) {
         const relaySubId = msg[1];
         for (const [subId, sub] of subscriptions) {
           if (sub.relaySubId === relaySubId) {
-            const port = ports.get(sub.portId);
+            const port = ports.get(sub._portId);
             if (port) {
               try {
                 port.postMessage({ type: "eose", subId });
               } catch {
-                ports.delete(sub.portId);
+                ports.delete(sub._portId);
               }
             }
           }
@@ -182,7 +182,7 @@ function publishEvent(event) {
 }
 self.onconnect = function(e) {
   const port = e.ports[0];
-  const pid = ++portId;
+  const pid = ++_portId;
   ports.set(pid, port);
   port.onmessage = function(ev) {
     const msg = ev.data;
@@ -203,7 +203,7 @@ self.onconnect = function(e) {
     } else if (msg.type === "subscribe") {
       const subId = "nsub_" + ++subIdCounter;
       const relaySubId = "r" + subIdCounter;
-      subscriptions.set(subId, { portId: pid, filters: msg.filters, relaySubId });
+      subscriptions.set(subId, { _portId: pid, filters: msg.filters, relaySubId });
       for (const url of relayUrls) sendSubscription(url, relaySubId, msg.filters);
       port.postMessage({ type: "subscribed", subId, clientSubId: msg.clientSubId });
     } else if (msg.type === "unsubscribe") {
@@ -239,7 +239,7 @@ self.onconnect = function(e) {
 function removePort(pid) {
   ports.delete(pid);
   for (const [subId, sub] of subscriptions) {
-    if (sub.portId === pid) {
+    if (sub._portId === pid) {
       for (const url of relayUrls) sendUnsubscribe(url, sub.relaySubId);
       subscriptions.delete(subId);
     }

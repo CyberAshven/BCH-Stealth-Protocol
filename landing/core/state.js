@@ -82,8 +82,8 @@ function init() {
   persist("prices", "00_dash_prices");
   persist("stealthUtxos", "00stealth_utxos");
   persist("fusionHistory", "00_fusion_history");
-  persist("theme", "00_theme", (v) => v);
-  persist("lang", "00_lang", (v) => v);
+  persist("theme", "00_theme", (v) => String(v));
+  persist("lang", "00_lang", (v) => String(v));
   persist("autoStealth", "00_auto_stealth", (v) => v ? "1" : "0");
   persist("relayMode", "00_onion_relay_mode", (v) => v ? "1" : "0");
   persist("sidebarCollapsed", "00_sidebar_collapsed", (v) => v ? "1" : "0");

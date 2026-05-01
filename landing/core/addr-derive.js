@@ -92,7 +92,7 @@ function xlmAddr(priv32) {
   return _base32Encode(full);
 }
 function deriveAllAddresses(keys) {
-  const addrs = { bch: keys.bchAddr };
+  const addrs = { bch: keys.bchAddr || "" };
   if (!keys.acctPriv || !keys.acctChain) return addrs;
   try {
     const acctPriv = keys.acctPriv;
