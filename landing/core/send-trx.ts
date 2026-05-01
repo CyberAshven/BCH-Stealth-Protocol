@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    TRON (TRX) Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -12,18 +11,18 @@ import { keccak_256 } from '../lib/noble-hashes.js';
 
 const API = 'https://api.trongrid.io';
 
-function b2h(bytes) { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
-function h2b(hex) { hex = hex.replace(/^0x/, ''); const a = new Uint8Array(hex.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16); return a; }
+function b2h(bytes: Uint8Array): string { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
+function h2b(hex: string): Uint8Array { hex = hex.replace(/^0x/, ''); const a = new Uint8Array(hex.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16); return a; }
 
 /* ── Get address from private key (hex41 format for signing) ── */
-export function getAddress(privKeyHex) {
+export function getAddress(privKeyHex: string): string {
   const pub = secp256k1.getPublicKey(h2b(privKeyHex), false).slice(1); // uncompressed, strip 04
   const hash = keccak_256(pub);
   return '41' + b2h(hash.slice(12)); // 41 prefix = mainnet
 }
 
 /* ── Base58Check encode (TRON format) ── */
-function base58Check(hexAddr) {
+function base58Check(hexAddr: string): string {
   const bytes = h2b(hexAddr);
   const checksum = sha256(sha256(bytes)).slice(0, 4);
   const full = new Uint8Array(bytes.length + 4);
@@ -38,7 +37,7 @@ function base58Check(hexAddr) {
 }
 
 /* ── Base58Check decode (T... address → hex41) ── */
-function base58Decode(addr) {
+function base58Decode(addr: string): string {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
   let n = 0n;
   for (const c of addr) { const i = ALPHABET.indexOf(c); if (i < 0) throw new Error('Invalid base58'); n = n * 58n + BigInt(i); }
@@ -53,7 +52,8 @@ function base58Decode(addr) {
 }
 
 /* ── Send TRX ── */
-export async function sendTrx({ toAddress, amountSun, privKeyHex }) {
+interface SendTrxParams { toAddress: string; amountSun: number; privKeyHex: string; }
+export async function sendTrx({ toAddress, amountSun, privKeyHex }: SendTrxParams): Promise<{ txid: string }> {
   const fromHex = getAddress(privKeyHex);
   const toHex = base58Decode(toAddress);
 

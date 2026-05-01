@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    Stellar (XLM) Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -11,7 +10,7 @@ import { ed25519 } from '../lib/noble-curves.js';
 const HORIZON = 'https://horizon.stellar.org';
 
 /* ── Memo encoding ── */
-function _encodeMemo(memo) {
+function _encodeMemo(memo: string | number): Uint8Array {
   const str = String(memo).trim();
   if (!str) return xdrUint32(0); // MEMO_NONE
   // Try as numeric ID first (MEMO_ID = 2)
@@ -24,30 +23,30 @@ function _encodeMemo(memo) {
   padded.set(enc);
   return concat(xdrUint32(1), xdrUint32(enc.length), padded); // MEMO_TEXT
 }
-function xdrUint64(n) { const b = new ArrayBuffer(8); const dv = new DataView(b); dv.setUint32(0, Number(n >> 32n)); dv.setUint32(4, Number(n & 0xFFFFFFFFn)); return new Uint8Array(b); }
+function xdrUint64(n: bigint): Uint8Array { const b = new ArrayBuffer(8); const dv = new DataView(b); dv.setUint32(0, Number(n >> 32n)); dv.setUint32(4, Number(n & 0xFFFFFFFFn)); return new Uint8Array(b); }
 const NETWORK_PASSPHRASE = 'Public Global Stellar Network ; September 2015';
 const BASE_FEE = 100; // 100 stroops = 0.00001 XLM
 
 /* ── Helpers ── */
-function b2h(bytes) { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
-function h2b(hex) { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16); return a; }
-function concat(...arrs) { const len = arrs.reduce((s, a) => s + a.length, 0); const r = new Uint8Array(len); let off = 0; for (const a of arrs) { r.set(a, off); off += a.length; } return r; }
+function b2h(bytes: Uint8Array): string { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
+function h2b(hex: string): Uint8Array { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < a.length; i++) a[i] = parseInt(hex.substr(i * 2, 2), 16); return a; }
+function concat(...arrs: Uint8Array[]): Uint8Array { const len = arrs.reduce((s, a) => s + a.length, 0); const r = new Uint8Array(len); let off = 0; for (const a of arrs) { r.set(a, off); off += a.length; } return r; }
 
 /* ── XDR Encoding helpers ── */
-function xdrInt32(n) { const b = new ArrayBuffer(4); new DataView(b).setInt32(0, n); return new Uint8Array(b); }
-function xdrUint32(n) { const b = new ArrayBuffer(4); new DataView(b).setUint32(0, n); return new Uint8Array(b); }
-function xdrInt64(n) { const b = new ArrayBuffer(8); const v = new DataView(b); const bn = BigInt(n); v.setUint32(0, Number(bn >> 32n)); v.setUint32(4, Number(bn & 0xFFFFFFFFn)); return new Uint8Array(b); }
-function xdrString(s) { const enc = new TextEncoder().encode(s); const padded = enc.length % 4 ? new Uint8Array(enc.length + (4 - enc.length % 4)) : new Uint8Array(enc.length); padded.set(enc); return concat(xdrUint32(enc.length), padded); }
-function xdrOpaque(bytes, fixed = false) { if (fixed) return bytes; const padLen = bytes.length % 4 ? 4 - bytes.length % 4 : 0; return concat(xdrUint32(bytes.length), bytes, new Uint8Array(padLen)); }
+function xdrInt32(n: number): Uint8Array { const b = new ArrayBuffer(4); new DataView(b).setInt32(0, n); return new Uint8Array(b); }
+function xdrUint32(n: number): Uint8Array { const b = new ArrayBuffer(4); new DataView(b).setUint32(0, n); return new Uint8Array(b); }
+function xdrInt64(n: number | bigint): Uint8Array { const b = new ArrayBuffer(8); const v = new DataView(b); const bn = BigInt(n); v.setUint32(0, Number(bn >> 32n)); v.setUint32(4, Number(bn & 0xFFFFFFFFn)); return new Uint8Array(b); }
+function xdrString(s: string): Uint8Array { const enc = new TextEncoder().encode(s); const padded = enc.length % 4 ? new Uint8Array(enc.length + (4 - enc.length % 4)) : new Uint8Array(enc.length); padded.set(enc); return concat(xdrUint32(enc.length), padded); }
+function xdrOpaque(bytes: Uint8Array, fixed: boolean = false): Uint8Array { if (fixed) return bytes; const padLen = bytes.length % 4 ? 4 - bytes.length % 4 : 0; return concat(xdrUint32(bytes.length), bytes, new Uint8Array(padLen)); }
 
 /* ── Stellar keypair from raw ed25519 private key ── */
-function getPublicKey(priv32) {
+function getPublicKey(priv32: Uint8Array): Uint8Array {
   return ed25519.getPublicKey(priv32.slice(0, 32));
 }
 
 /* ── Base32 encode/decode (RFC 4648, Stellar StrKey) ── */
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-function base32Decode(str) {
+function base32Decode(str: string): Uint8Array {
   str = str.replace(/=+$/, '');
   const out = [];
   let bits = 0, val = 0;
@@ -60,7 +59,7 @@ function base32Decode(str) {
   return new Uint8Array(out);
 }
 
-function base32Encode(data) {
+function base32Encode(data: Uint8Array): string {
   let bits = 0, val = 0, out = '';
   for (const b of data) { val = (val << 8) | b; bits += 8; while (bits >= 5) { bits -= 5; out += B32[(val >> bits) & 31]; } }
   if (bits > 0) out += B32[(val << (5 - bits)) & 31];
@@ -69,14 +68,14 @@ function base32Encode(data) {
 }
 
 /* ── CRC16-XMODEM ── */
-function crc16(data) {
+function crc16(data: Uint8Array): number {
   let crc = 0;
   for (const b of data) { crc ^= b << 8; for (let i = 0; i < 8; i++) crc = (crc << 1) ^ ((crc & 0x8000) ? 0x1021 : 0); crc &= 0xffff; }
   return crc;
 }
 
 /* ── Decode Stellar G... address → 32-byte public key ── */
-function decodeAddress(addr) {
+function decodeAddress(addr: string): Uint8Array {
   const decoded = base32Decode(addr);
   const versionByte = decoded[0];
   const pubKey = decoded.slice(1, 33);
@@ -87,20 +86,21 @@ function decodeAddress(addr) {
 }
 
 /* ── Encode public key → G... address ── */
-function encodeAddress(pubKey) {
+function encodeAddress(pubKey: Uint8Array): string {
   const payload = concat(new Uint8Array([6 << 3]), pubKey); // G... = version 6
   const cs = crc16(payload);
   return base32Encode(concat(payload, new Uint8Array([cs & 0xff, (cs >> 8) & 0xff])));
 }
 
 /* ── SHA-256 ── */
-async function sha256(data) {
-  const buf = await crypto.subtle.digest('SHA-256', data);
+async function sha256(data: Uint8Array): Promise<Uint8Array> {
+  const buf = await crypto.subtle.digest('SHA-256', data as unknown as ArrayBuffer);
   return new Uint8Array(buf);
 }
 
 /* ── Build & sign a payment transaction ── */
-export async function sendXlm({ toAddress, amountStroops, privKey32, memo }) {
+interface SendXlmParams { toAddress: string; amountStroops: bigint | number; privKey32: Uint8Array; memo?: string; }
+export async function sendXlm({ toAddress, amountStroops, privKey32, memo }: SendXlmParams): Promise<{ txid: string }> {
   const pubKey = getPublicKey(privKey32);
   const fromAddress = encodeAddress(pubKey);
   const toPubKey = decodeAddress(toAddress);

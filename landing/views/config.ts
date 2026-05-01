@@ -18,11 +18,11 @@ function _template() {
     </div>
     <div class="dt-card">
       <div class="dt-card-title">BCH Fulcrum Servers</div>
-      <div class="dt-form-group"><textarea class="dt-form-input" id="cfg-fulcrum" rows="3" style="font-size:11px;font-family:monospace">${_ep('fulcrum', 'wss://bch.imaginary.cash:50004')}</textarea></div>
+      <div class="dt-form-group"><textarea class="dt-form-input" id="cfg-fulcrum" rows="3" style="font-size:11px;font-family:monospace">${_ep('fulcrum', 'wss://bch.imaginary.cash:50004\nwss://electrum.imaginary.cash:50004\nwss://bch.loping.net:50004\nwss://bch.soul-dev.com:50004\nwss://electron.jochen-hoenicke.de:51004\nwss://electrumx-bch.cryptonermal.net:50004\nwss://cashnode.bch.ninja:50004\nwss://electroncash.dk:50004')}</textarea></div>
     </div>
     <div class="dt-card">
       <div class="dt-card-title">BTC Electrum Servers</div>
-      <div class="dt-form-group"><textarea class="dt-form-input" id="cfg-btc" rows="2" style="font-size:11px;font-family:monospace">${_ep('btc_electrum', 'wss://electrum.blockstream.info:50002')}</textarea></div>
+      <div class="dt-form-group"><textarea class="dt-form-input" id="cfg-btc" rows="2" style="font-size:11px;font-family:monospace">${_ep('btc_electrum', 'wss://e2.keff.org:50004\nwss://fulcrum.grey.pw:50004\nwss://btc.electroncash.dk:50004\nwss://electrum.petrkr.net:50004\nwss://bitcoinserver.nl:50004\nwss://mempool.8333.mobi:50004')}</textarea></div>
     </div>
     <div class="dt-card">
       <div class="dt-card-title">Nostr Relays</div>

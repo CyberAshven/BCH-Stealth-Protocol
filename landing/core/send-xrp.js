@@ -90,7 +90,7 @@ function serializeForSigning({ srcAcctId, dstAcctId, amountDrops, feeDrops, sequ
     // Sequence
   ];
   if (destinationTag !== void 0 && destinationTag !== null && destinationTag !== "") {
-    parts.push(encU32(2, 14, parseInt(destinationTag)));
+    parts.push(encU32(2, 14, parseInt(String(destinationTag))));
   }
   parts.push(
     encU32(2, 27, lastLedgerSeq),

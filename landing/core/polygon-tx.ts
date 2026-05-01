@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    Polygon Transaction Builder & Signer
    ══════════════════════════════════════════
@@ -18,7 +17,7 @@ const CHAIN_ID = 137;
 
 /* ── RPC helper ── */
 let _rpcId = 1;
-async function rpc(method, params = []) {
+async function rpc(method: string, params: unknown[] = []): Promise<any> {
   const r = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,11 +29,11 @@ async function rpc(method, params = []) {
 }
 
 /* ── Hex helpers ── */
-function toHex(n) { return '0x' + (typeof n === 'bigint' ? n.toString(16) : Number(n).toString(16)); }
-function padHex(hex, bytes) { return hex.replace('0x', '').padStart(bytes * 2, '0'); }
+function toHex(n: number | bigint): string { return '0x' + (typeof n === 'bigint' ? n.toString(16) : Number(n).toString(16)); }
+function padHex(hex: string, bytes: number): string { return hex.replace('0x', '').padStart(bytes * 2, '0'); }
 
 /* ── RLP encoding ── */
-function rlpEncode(items) {
+function rlpEncode(items: Uint8Array | unknown[]): Uint8Array {
   if (items instanceof Uint8Array) {
     if (items.length === 1 && items[0] < 0x80) return items;
     if (items.length <= 55) return concat(new Uint8Array([0x80 + items.length]), items);
@@ -50,13 +49,13 @@ function rlpEncode(items) {
   return rlpEncode(new Uint8Array(0));
 }
 
-function _intToBytes(n) {
+function _intToBytes(n: number): Uint8Array {
   const hex = n.toString(16);
   const padded = hex.length % 2 ? '0' + hex : hex;
   return h2b(padded);
 }
 
-function _numToRlpBytes(n) {
+function _numToRlpBytes(n: number | bigint): Uint8Array {
   const big = BigInt(n);
   if (big === 0n) return new Uint8Array(0);
   const hex = big.toString(16);
@@ -66,7 +65,7 @@ function _numToRlpBytes(n) {
 
 /* ── ERC20 ABI encoding ── */
 // approve(address spender, uint256 amount)
-export function encodeApprove(spender, amount = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff') {
+export function encodeApprove(spender: string, amount: string = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'): string {
   const selector = '095ea7b3'; // keccak256("approve(address,uint256)")
   const addr = padHex(spender, 32);
   const amt = padHex(amount, 32);
@@ -74,31 +73,31 @@ export function encodeApprove(spender, amount = '0xfffffffffffffffffffffffffffff
 }
 
 // allowance(address owner, address spender) → uint256
-export function encodeAllowance(owner, spender) {
+export function encodeAllowance(owner: string, spender: string): string {
   const selector = 'dd62ed3e'; // keccak256("allowance(address,address)")
   return '0x' + selector + padHex(owner, 32) + padHex(spender, 32);
 }
 
 // balanceOf(address) → uint256
-export function encodeBalanceOf(addr) {
+export function encodeBalanceOf(addr: string): string {
   const selector = '70a08231';
   return '0x' + selector + padHex(addr, 32);
 }
 
 // setApprovalForAll(address operator, bool approved) — ERC1155
-export function encodeSetApprovalForAll(operator, approved = true) {
+export function encodeSetApprovalForAll(operator: string, approved: boolean = true): string {
   const selector = 'a22cb465';
   return '0x' + selector + padHex(operator, 32) + padHex(approved ? '1' : '0', 32);
 }
 
 // isApprovedForAll(address owner, address operator) → bool — ERC1155
-export function encodeIsApprovedForAll(owner, operator) {
+export function encodeIsApprovedForAll(owner: string, operator: string): string {
   const selector = 'e985e9c5';
   return '0x' + selector + padHex(owner, 32) + padHex(operator, 32);
 }
 
 // Uniswap V3 exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))
-export function encodeExactInputSingle(tokenIn, tokenOut, fee, recipient, deadline, amountIn, amountOutMin) {
+export function encodeExactInputSingle(tokenIn: string, tokenOut: string, fee: number, recipient: string, deadline: number, amountIn: bigint | number, amountOutMin: bigint | number): string {
   const selector = '414bf389'; // keccak256("exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160))")
   return '0x' + selector
     + padHex(tokenIn, 32)
@@ -114,10 +113,11 @@ export function encodeExactInputSingle(tokenIn, tokenOut, fee, recipient, deadli
 /* ══════════════════════════════════════════
    SIGN & BROADCAST TRANSACTION
    ══════════════════════════════════════════ */
-export async function signAndSend(privKeyHex, to, data, value = '0x0', gasLimit = 200000, opts = {}) {
-  const chainId = opts.chainId || CHAIN_ID;
-  const rpcUrl = opts.rpc || RPC;
-  const _rpcFn = async (method, params = []) => {
+interface SignAndSendOpts { chainId?: number; rpc?: string; }
+export async function signAndSend(privKeyHex: string, to: string, data: string, value: string = '0x0', gasLimit: number = 200000, opts: SignAndSendOpts = {}): Promise<string> {
+  const chainId: number = opts.chainId || CHAIN_ID;
+  const rpcUrl: string = opts.rpc || RPC;
+  const _rpcFn = async (method: string, params: unknown[] = []): Promise<any> => {
     if (rpcUrl === RPC) return rpc(method, params);
     const r = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++_rpcId, method, params }) });
     const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
@@ -174,16 +174,17 @@ export async function signAndSend(privKeyHex, to, data, value = '0x0', gasLimit 
 }
 
 /* ── Wait for TX confirmation ── */
-export async function waitForTx(txHash, timeout = 60000, opts = {}) {
-  const rpcUrl = opts.rpc || RPC;
-  const _rpcFn = async (method, params = []) => {
+interface WaitForTxOpts { rpc?: string; }
+export async function waitForTx(txHash: string, timeout: number = 60000, opts: WaitForTxOpts = {}): Promise<{ status: number; gasUsed: number }> {
+  const rpcUrl: string = opts.rpc || RPC;
+  const _rpcFn = async (method: string, params: unknown[] = []): Promise<any> => {
     if (rpcUrl === RPC) return rpc(method, params);
     const r = await fetch(rpcUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++_rpcId, method, params }) });
     const j = await r.json(); if (j.error) throw new Error(j.error.message); return j.result;
   };
   const start = Date.now();
   while (Date.now() - start < timeout) {
-    const receipt = await _rpcFn('eth_getTransactionReceipt', [txHash]);
+  const receipt: any = await _rpcFn('eth_getTransactionReceipt', [txHash]);
     if (receipt) {
       return { status: parseInt(receipt.status, 16), gasUsed: parseInt(receipt.gasUsed, 16) };
     }
@@ -193,7 +194,7 @@ export async function waitForTx(txHash, timeout = 60000, opts = {}) {
 }
 
 /* ── Get address from private key ── */
-export function getAddress(privKeyHex) {
+export function getAddress(privKeyHex: string): string {
   const pub = secp256k1.getPublicKey(h2b(privKeyHex), false).slice(1);
   const hash = keccak_256(pub);
   return '0x' + b2h(hash.slice(-20));

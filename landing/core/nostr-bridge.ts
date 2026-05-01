@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Nostr Bridge (SharedWorker + Fallback)
    ══════════════════════════════════════════
@@ -14,26 +13,32 @@
      nostrStatus()                             → {connected, relays[], relayCount}
    ══════════════════════════════════════════ */
 
-let _mode = null; // 'worker' | 'fallback'
-let _worker = null, _port = null;
+type NostrEvent = Record<string, unknown>;
+type SubCallback = (event: NostrEvent, subId: string) => void;
+type StatusCallback = (status: { connected: boolean; relays: Array<{ url: string; connected: boolean }>; relayCount: number }) => void;
+type OkCallback = (success: boolean, message: string) => void;
+
+let _mode: 'worker' | 'fallback' | null = null;
+let _worker: SharedWorker | null = null, _port: MessagePort | null = null;
 let _clientSubId = 0;
 
-const _pendingSubs = new Map();
-const _activeSubs = new Map();
-const _statusListeners = new Set();
-const _okCallbacks = new Map();
-let _lastStatus = { connected: false, relays: [], relayCount: 0 };
+const _pendingSubs = new Map<number, { resolve: (subId: string) => void; callback: SubCallback }>();
+const _activeSubs = new Map<string, SubCallback>();
+const _statusListeners = new Set<StatusCallback>();
+const _okCallbacks = new Map<string, OkCallback>();
+let _lastStatus: { connected: boolean; relays: Array<{ url: string; connected: boolean }>; relayCount: number } = { connected: false, relays: [], relayCount: 0 };
 
 /* ══════════════════════════════════════════
    FALLBACK: Main-thread relay pool
    ══════════════════════════════════════════ */
-let _fbRelays = {};    // url → { ws, connected }
-let _fbRelayUrls = [];
+type RelayEntry = { ws: WebSocket | null; connected: boolean };
+let _fbRelays: Record<string, RelayEntry> = {};
+let _fbRelayUrls: string[] = [];
 let _fbSubId = 0;
-const _fbSubs = new Map();  // subId → { filters, callback }
-const _fbSeen = new Set();
+const _fbSubs = new Map<string, { filters: unknown[]; callback: SubCallback }>();
+const _fbSeen = new Set<string>();
 
-function _fbConnect(url) {
+function _fbConnect(url: string): void {
   const existing = _fbRelays[url];
   if (existing?.ws && (existing.ws.readyState === 0 || existing.ws.readyState === 1)) return; // connecting or open
   const r = { ws: null, connected: false };
@@ -74,18 +79,18 @@ function _fbConnect(url) {
   } catch {}
 }
 
-function _fbBroadcastStatus() {
+function _fbBroadcastStatus(): void {
   const relays = _fbRelayUrls.map(url => ({ url, connected: !!_fbRelays[url]?.connected }));
   _lastStatus = { connected: relays.some(r => r.connected), relays, relayCount: relays.filter(r => r.connected).length };
   for (const cb of _statusListeners) { try { cb(_lastStatus); } catch {} }
 }
 
-function _fbInit(relays) {
+function _fbInit(relays: string[]): void {
   _fbRelayUrls = relays;
   for (const url of relays) _fbConnect(url);
 }
 
-function _fbSubscribe(filters, callback) {
+function _fbSubscribe(filters: unknown[], callback: SubCallback): string {
   const subId = 'nsub_' + (++_fbSubId);
   _fbSubs.set(subId, { filters, callback });
   for (const url of _fbRelayUrls) {
@@ -95,7 +100,7 @@ function _fbSubscribe(filters, callback) {
   return subId;
 }
 
-function _fbUnsubscribe(subId) {
+function _fbUnsubscribe(subId: string): void {
   _fbSubs.delete(subId);
   for (const url of _fbRelayUrls) {
     const r = _fbRelays[url];
@@ -103,7 +108,7 @@ function _fbUnsubscribe(subId) {
   }
 }
 
-function _fbPublish(event) {
+function _fbPublish(event: NostrEvent): void {
   const msg = JSON.stringify(['EVENT', event]);
   for (const url of _fbRelayUrls) {
     const r = _fbRelays[url];
@@ -114,15 +119,15 @@ function _fbPublish(event) {
 /* ══════════════════════════════════════════
    SHAREDWORKER MODE
    ══════════════════════════════════════════ */
-function _swHandleMessage(ev) {
+function _swHandleMessage(ev: MessageEvent): void {
   const msg = ev.data;
   if (msg.type === 'status') {
     _lastStatus = msg;
     for (const cb of _statusListeners) { try { cb(msg); } catch {} }
   }
   else if (msg.type === 'subscribed') {
-    const pending = _pendingSubs.get(msg.clientSubId);
-    if (pending) { _pendingSubs.delete(msg.clientSubId); _activeSubs.set(msg.subId, pending.callback); pending.resolve(msg.subId); }
+    const pending = _pendingSubs.get(msg.clientSubId as number);
+    if (pending) { _pendingSubs.delete(msg.clientSubId as number); _activeSubs.set(msg.subId as string, pending.callback); pending.resolve(msg.subId as string); }
   }
   else if (msg.type === 'event') {
     const cb = _activeSubs.get(msg.subId);
@@ -137,7 +142,7 @@ function _swHandleMessage(ev) {
 /* ══════════════════════════════════════════
    PUBLIC API
    ══════════════════════════════════════════ */
-export function nostrInit(relays) {
+export function nostrInit(relays: string[]): void {
   // Allow re-init if not connected yet
   if (_mode === 'fallback' && _lastStatus.connected) return;
 
@@ -150,7 +155,7 @@ export function nostrInit(relays) {
   console.log('[nostr] Relay pool initialized ✓ (' + relays.length + ' relays)');
 }
 
-export function nostrSubscribe(filters, callback) {
+export function nostrSubscribe(filters: unknown[], callback: SubCallback): Promise<string | null> {
   if (_mode === 'fallback') {
     const subId = _fbSubscribe(filters, callback);
     return Promise.resolve(subId);
@@ -165,27 +170,27 @@ export function nostrSubscribe(filters, callback) {
   return Promise.resolve(null);
 }
 
-export function nostrUnsubscribe(subId) {
+export function nostrUnsubscribe(subId: string | null | undefined): void {
   if (!subId) return;
   if (_mode === 'fallback') { _fbUnsubscribe(subId); return; }
   if (_mode === 'worker') { _activeSubs.delete(subId); _port.postMessage({ type: 'unsubscribe', subId }); }
 }
 
-export function nostrPublish(event, onOk) {
+export function nostrPublish(event: NostrEvent, onOk?: OkCallback): void {
   if (onOk && event.id) _okCallbacks.set(event.id, onOk);
   if (_mode === 'fallback') { _fbPublish(event); return; }
   if (_mode === 'worker') { _port.postMessage({ type: 'publish', event }); }
 }
 
-export function nostrOnStatus(callback) {
+export function nostrOnStatus(callback: StatusCallback): () => boolean {
   _statusListeners.add(callback);
   callback(_lastStatus);
   return () => _statusListeners.delete(callback);
 }
 
-export function nostrStatus() { return _lastStatus; }
+export function nostrStatus(): typeof _lastStatus { return _lastStatus; }
 
-export function nostrUpdateRelays(relays) {
+export function nostrUpdateRelays(relays: string[]): void {
   if (_mode === 'fallback') {
     // Close old, connect new
     for (const url of _fbRelayUrls) { const r = _fbRelays[url]; if (r?.ws) try { r.ws.close(); } catch {} }
@@ -196,18 +201,18 @@ export function nostrUpdateRelays(relays) {
   if (_mode === 'worker') { _port.postMessage({ type: 'updateRelays', relays }); }
 }
 
-export function nostrIsConnected() { return _lastStatus.connected; }
-export function nostrMode() { return _mode; }
+export function nostrIsConnected(): boolean { return _lastStatus.connected; }
+export function nostrMode(): 'worker' | 'fallback' | null { return _mode; }
 
 /* ── Legacy window.* API ── */
 if (typeof window !== 'undefined') {
-  window._nostrInit = nostrInit;
-  window._nostrPublish = nostrPublish;
-  window._nostrSubscribe = nostrSubscribe;
-  window._nostrUnsubscribe = nostrUnsubscribe;
-  window._nostrOnStatus = nostrOnStatus;
-  window._nostrStatus = nostrStatus;
-  window._nostrUpdateRelays = nostrUpdateRelays;
-  window._nostrIsConnected = nostrIsConnected;
+  (window as any)._nostrInit = nostrInit;
+  (window as any)._nostrPublish = nostrPublish;
+  (window as any)._nostrSubscribe = nostrSubscribe;
+  (window as any)._nostrUnsubscribe = nostrUnsubscribe;
+  (window as any)._nostrOnStatus = nostrOnStatus;
+  (window as any)._nostrStatus = nostrStatus;
+  (window as any)._nostrUpdateRelays = nostrUpdateRelays;
+  (window as any)._nostrIsConnected = nostrIsConnected;
 }
 

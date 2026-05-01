@@ -1,7 +1,7 @@
 import { sha256 } from "../lib/noble-hashes.js";
 import { secp256k1 } from "../lib/noble-curves.js";
-import { deriveBchPriv, deriveStealth, bip32Child } from "./hd.js";
-import { pubHashToCashAddr } from "./cashaddr.js";
+import { deriveBchPriv, deriveStealth, bip32Child, bip32ChildPub } from "./hd.js";
+import { pubHashToCashAddr, cashAddrToHash20 } from "./cashaddr.js";
 import { b2h, h2b, utf8, rand } from "./utils.js";
 import { ripemd160 } from "../lib/noble-hashes.js";
 let _keys = null;
@@ -33,7 +33,7 @@ async function encryptVault(profile, password) {
   return JSON.stringify({ v: 1, salt: b2h(salt), iv: b2h(iv), data: b2h(new Uint8Array(ct)) });
 }
 async function _deriveKeys(profile) {
-  let privKey, acctPriv, acctChain;
+  let privKey, acctPriv = null, acctChain = null;
   const seedHex = profile.seed || profile.seedHex;
   if (seedHex) {
     const seed64 = h2b(seedHex);
@@ -72,7 +72,7 @@ async function _deriveKeys(profile) {
   if (acctPriv && acctChain) {
     try {
       const { deriveXmrKeys } = await import("./xmr-keys.js");
-      xmrKeys = deriveXmrKeys(acctPriv, acctChain, bip32Child);
+      xmrKeys = deriveXmrKeys(acctPriv, acctChain, (priv, chain, idx) => bip32Child(priv, chain, idx, false));
     } catch (e) {
       console.warn("[auth] XMR key derivation failed:", e.message);
     }
@@ -185,10 +185,10 @@ async function connectLedger(onProgress) {
   _ledgerAddresses = [];
   onProgress?.("Scanning addresses...");
   for (const changeIdx of [0, 1]) {
-    const changeKey = bip32Child(acctPub, acctChain, changeIdx);
+    const changeKey = bip32ChildPub(acctPub, acctChain, changeIdx);
     let gap = 0;
     for (let i = 0; i < 50 && gap < 20; i++) {
-      const child = bip32Child(changeKey.pub, changeKey.chain, i);
+      const child = bip32ChildPub(changeKey.pub, changeKey.chain, i);
       const h160 = ripemd160(sha256(child.pub));
       const addr = pubHashToCashAddr(h160);
       const script = new Uint8Array([118, 169, 20, ...h160, 136, 172]);
@@ -209,7 +209,7 @@ async function connectLedger(onProgress) {
     }
   }
   if (_ledgerAddresses.length === 0) {
-    const firstChild = bip32Child(bip32Child(acctPub, acctChain, 0).pub, bip32Child(acctPub, acctChain, 0).chain, 0);
+    const firstChild = bip32ChildPub(bip32ChildPub(acctPub, acctChain, 0).pub, bip32ChildPub(acctPub, acctChain, 0).chain, 0);
     const h160 = ripemd160(sha256(firstChild.pub));
     _ledgerAddresses.push({
       pubKey: firstChild.pub,
@@ -220,8 +220,8 @@ async function connectLedger(onProgress) {
   const primary = _ledgerAddresses.find((a) => a.path5[3] === 0) || _ledgerAddresses[0];
   const usedChg1 = _ledgerAddresses.filter((a) => a.path5[3] === 1);
   const nextChgIdx = usedChg1.length > 0 ? Math.max(...usedChg1.map((a) => a.path5[4])) + 1 : 0;
-  const chgLvl = bip32Child(acctPub, acctChain, 1);
-  const chgChild = bip32Child(chgLvl.pub, chgLvl.chain, nextChgIdx);
+  const chgLvl = bip32ChildPub(acctPub, acctChain, 1);
+  const chgChild = bip32ChildPub(chgLvl.pub, chgLvl.chain, nextChgIdx);
   const chgH160 = ripemd160(sha256(chgChild.pub));
   const chgPath = _ledgerPath(1, nextChgIdx);
   _ledgerChangeHash160 = chgH160;
@@ -363,6 +363,14 @@ async function wcDisconnect() {
   _profile = null;
   localStorage.removeItem("00_wc_session");
   _notifyListeners();
+}
+function _notifyListeners() {
+  for (const cb of _listeners) {
+    try {
+      cb(_keys ? "unlock" : "disconnect", _keys);
+    } catch {
+    }
+  }
 }
 function _wcSubEvents(client) {
   client.on("session_delete", () => {

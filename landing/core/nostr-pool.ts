@@ -1,15 +1,19 @@
-// @ts-nocheck
 // 0penw0rld SharedWorker — persistent Nostr relay connections
 // Survives page navigations. One set of relay connections shared across all tabs/views.
 // Pattern copied from ws-shared.js (proven Fulcrum SharedWorker).
 
-const relays = {};       // url → { ws, connected, reconnectTimer, connectTimer }
-let relayUrls = [];      // configured relay list
-let portId = 0;
-const ports = new Map(); // portId → MessagePort
+type NostrFilter = { ids?: string[]; authors?: string[]; kinds?: number[]; since?: number; until?: number; [key: string]: unknown };
 
-// Subscriptions: subId → { portId, filters, relaySubId }
-const subscriptions = new Map();
+type RelayState = { ws: WebSocket | null; connected: boolean; reconnectTimer: ReturnType<typeof setTimeout> | null; connectTimer: ReturnType<typeof setTimeout> | null };
+type SubState = { _portId: number; filters: NostrFilter[]; relaySubId: string };
+type NostrEvent = Record<string, unknown>;
+
+const relays: Record<string, RelayState> = {};
+let relayUrls: string[] = [];
+let _portId = 0;
+const ports = new Map<number, MessagePort>();
+
+const subscriptions = new Map<string, SubState>();
 let subIdCounter = 0;
 
 // Event dedup (capped ring buffer)
@@ -17,7 +21,7 @@ const seenEvents = new Set();
 const SEEN_MAX = 5000;
 const SEEN_PRUNE = 2500;
 
-function addSeen(id) {
+function addSeen(id: string): void {
   seenEvents.add(id);
   if (seenEvents.size > SEEN_MAX) {
     const arr = [...seenEvents];
@@ -27,10 +31,10 @@ function addSeen(id) {
 }
 
 // ── Connect to a single relay ──
-function connectRelay(url) {
+function connectRelay(url: string): void {
   if (relays[url] && relays[url].ws) return; // already connected/connecting
 
-  const r = relays[url] || { ws: null, connected: false, connectTimer: null, reconnectTimer: null };
+  const r: RelayState = relays[url] || { ws: null, connected: false, connectTimer: null, reconnectTimer: null };
   relays[url] = r;
 
   try {
@@ -65,10 +69,10 @@ function connectRelay(url) {
         // Route to matching subscription by relaySubId
         for (const [subId, sub] of subscriptions) {
           if (sub.relaySubId === relaySubId) {
-            const port = ports.get(sub.portId);
+            const port = ports.get(sub._portId);
             if (port) {
               try { port.postMessage({ type: 'event', subId, event }); }
-              catch { ports.delete(sub.portId); }
+              catch { ports.delete(sub._portId); }
             }
           }
         }
@@ -80,10 +84,10 @@ function connectRelay(url) {
         const relaySubId = msg[1];
         for (const [subId, sub] of subscriptions) {
           if (sub.relaySubId === relaySubId) {
-            const port = ports.get(sub.portId);
+            const port = ports.get(sub._portId);
             if (port) {
               try { port.postMessage({ type: 'eose', subId }); }
-              catch { ports.delete(sub.portId); }
+              catch { ports.delete(sub._portId); }
             }
           }
         }
@@ -125,14 +129,14 @@ function connectRelay(url) {
   }
 }
 
-function rotateRelay(url) {
+function rotateRelay(url: string): void {
   const r = relays[url];
   if (!r) return;
   clearTimeout(r.reconnectTimer);
   r.reconnectTimer = setTimeout(() => connectRelay(url), 5000);
 }
 
-function broadcastStatus() {
+function broadcastStatus(): void {
   const status = relayUrls.map(url => ({
     url,
     connected: !!(relays[url] && relays[url].connected)
@@ -145,7 +149,7 @@ function broadcastStatus() {
 }
 
 // ── Filter matching (NIP-01) ──
-function matchesFilters(event, filters) {
+function matchesFilters(event: NostrEvent, filters: NostrFilter[]): boolean {
   for (const f of filters) {
     let match = true;
     if (f.ids && !f.ids.some(id => event.id.startsWith(id))) match = false;
@@ -168,26 +172,26 @@ function matchesFilters(event, filters) {
 }
 
 // ── Subscribe on a specific relay ──
-function sendSubscription(url, relaySubId, filters) {
+function sendSubscription(url: string, relaySubId: string, filters: NostrFilter[]): void {
   const r = relays[url];
   if (!r || !r.ws || r.ws.readyState !== 1) return;
   r.ws.send(JSON.stringify(['REQ', relaySubId, ...filters]));
 }
 
-function sendUnsubscribe(url, relaySubId) {
+function sendUnsubscribe(url: string, relaySubId: string): void {
   const r = relays[url];
   if (!r || !r.ws || r.ws.readyState !== 1) return;
   r.ws.send(JSON.stringify(['CLOSE', relaySubId]));
 }
 
-function resubscribeAll(url) {
+function resubscribeAll(url: string): void {
   for (const [subId, sub] of subscriptions) {
     sendSubscription(url, sub.relaySubId, sub.filters);
   }
 }
 
 // ── Publish event to all connected relays ──
-function publishEvent(event) {
+function publishEvent(event: NostrEvent): void {
   const msg = JSON.stringify(['EVENT', event]);
   for (const url of relayUrls) {
     const r = relays[url];
@@ -198,9 +202,9 @@ function publishEvent(event) {
 }
 
 // ── Port management ──
-self.onconnect = function(e) {
+(self as any).onconnect = function(e: MessageEvent) {
   const port = e.ports[0];
-  const pid = ++portId;
+  const pid = ++_portId;
   ports.set(pid, port);
 
   port.onmessage = function(ev) {
@@ -228,7 +232,7 @@ self.onconnect = function(e) {
     else if (msg.type === 'subscribe') {
       const subId = 'nsub_' + (++subIdCounter);
       const relaySubId = 'r' + subIdCounter;
-      subscriptions.set(subId, { portId: pid, filters: msg.filters, relaySubId });
+      subscriptions.set(subId, { _portId: pid, filters: msg.filters, relaySubId });
       // Send REQ to all connected relays
       for (const url of relayUrls) sendSubscription(url, relaySubId, msg.filters);
       // Return subId to caller
@@ -268,11 +272,11 @@ self.onconnect = function(e) {
   port.onmessageerror = function() { removePort(pid); };
 };
 
-function removePort(pid) {
+function removePort(pid: number): void {
   ports.delete(pid);
   // Cleanup subscriptions from this port
   for (const [subId, sub] of subscriptions) {
-    if (sub.portId === pid) {
+    if (sub._portId === pid) {
       for (const url of relayUrls) sendUnsubscribe(url, sub.relaySubId);
       subscriptions.delete(subId);
     }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Polymarket CLOB Client
    ══════════════════════════════════════════
@@ -38,7 +37,7 @@ const CREDS_KEY = '00_poly_api_creds';
    ══════════════════════════════════════════ */
 
 /** EIP-55 checksum address from raw 20-byte hash or hex string */
-function checksumAddress(addrHex) {
+function checksumAddress(addrHex: string): string {
   const raw = addrHex.replace('0x', '').toLowerCase();
   const hashHex = b2h(keccak_256(new TextEncoder().encode(raw)));
   let cs = '0x';
@@ -49,25 +48,25 @@ function checksumAddress(addrHex) {
 }
 
 /** Derive EIP-55 checksum address from private key hex */
-function addressFromPriv(privHex) {
+function addressFromPriv(privHex: string): string {
   const pub = secp256k1.getPublicKey(h2b(privHex), false).slice(1);
   const hash = keccak_256(pub);
   return checksumAddress(b2h(hash.slice(-20)));
 }
 
 /** Zero-padded 32-byte hex (no 0x prefix) */
-function pad32(hex) {
+function pad32(hex: string): string {
   return hex.replace('0x', '').padStart(64, '0');
 }
 
 /** BigInt to 32-byte Uint8Array (big-endian) */
-function bigToBytes32(n) {
+function bigToBytes32(n: bigint): Uint8Array {
   const hex = n.toString(16).padStart(64, '0');
   return h2b(hex);
 }
 
 /** Random 256-bit BigInt for order salt */
-function randomSalt() {
+function randomSalt(): number {
   // py_order_utils generate_seed() returns a ~32-bit int, not 256-bit
   const bytes = rand(4);
   return ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
@@ -83,7 +82,7 @@ function randomSalt() {
 /* ── Solidity ABI type encoders ── */
 
 /** ABI-encode a single value by EIP-712 type */
-function abiEncodeField(type, value) {
+function abiEncodeField(type: string, value: unknown): Uint8Array {
   if (type === 'address') {
     // address → uint160 → left-padded to 32 bytes
     return h2b(pad32(value.replace('0x', '')));
@@ -118,7 +117,7 @@ function abiEncodeField(type, value) {
  * Compute the EIP-712 typeHash for a struct.
  * typeString example: "Order(uint256 salt,address maker,...)"
  */
-function typeHash(typeString) {
+function typeHash(typeString: string): Uint8Array {
   return keccak_256(new TextEncoder().encode(typeString));
 }
 
@@ -128,7 +127,7 @@ function typeHash(typeString) {
  * @param {string[]} types  - ordered list of Solidity types
  * @param {any[]} values    - ordered list of values
  */
-function hashStruct(typeStr, types, values) {
+function hashStruct(typeStr: string, types: string[], values: unknown[]): Uint8Array {
   const parts = [typeHash(typeStr)];
   for (let i = 0; i < types.length; i++) {
     parts.push(abiEncodeField(types[i], values[i]));
@@ -139,7 +138,8 @@ function hashStruct(typeStr, types, values) {
 /**
  * Hash the EIP-712 domain separator.
  */
-function hashDomain(domain) {
+interface Eip712Domain { name?: string; version?: string; chainId?: number; verifyingContract?: string; salt?: string; }
+function hashDomain(domain: Eip712Domain): Uint8Array {
   // Build dynamic domain type string and fields based on present keys
   const dtypes = [];
   const dvals = [];
@@ -177,7 +177,7 @@ function hashDomain(domain) {
  * Full EIP-712 signing.
  * Returns { signature, v, r, s } where signature is 65 bytes (r + s + v).
  */
-function signTypedData(domain, primaryTypeStr, types, values, privKeyBytes) {
+function signTypedData(domain: Eip712Domain, primaryTypeStr: string, types: string[], values: unknown[], privKeyBytes: Uint8Array): { signature: string; v: number; r: bigint; s: bigint } {
   const domainSep = hashDomain(domain);
   const structHash = hashStruct(primaryTypeStr, types, values);
 
@@ -225,7 +225,7 @@ const MSG_TO_SIGN = 'This message attests that I control the given wallet';
  * Uses Level 1 auth headers (EIP-712 signed ClobAuth message).
  * Tries POST /auth/api-key first (create), then GET /auth/derive-api-key (derive).
  */
-async function deriveApiKey(privKeyHex) {
+async function deriveApiKey(privKeyHex: string): Promise<any> {
   const privBytes = h2b(privKeyHex);
   const address = addressFromPriv(privKeyHex);
   const timestamp = String(Math.floor(Date.now() / 1000));
@@ -284,7 +284,7 @@ async function deriveApiKey(privKeyHex) {
  * Build HMAC-SHA256 signature for CLOB API.
  * message = timestamp + method + requestPath + body
  */
-async function buildHmacSignature(secret, timestamp, method, requestPath, body = '') {
+async function buildHmacSignature(secret: string, timestamp: string | number, method: string, requestPath: string, body: string = ''): Promise<string> {
   // Message: timestamp + method + path + body (body = compact JSON string)
   let message = String(timestamp) + String(method) + String(requestPath);
   if (body) message += body;
@@ -305,7 +305,7 @@ async function buildHmacSignature(secret, timestamp, method, requestPath, body =
 /**
  * Build all Polymarket auth headers for a request.
  */
-async function buildHeaders(method, path, body = '') {
+async function buildHeaders(method: string, path: string, body: string = ''): Promise<Record<string, string>> {
   const creds = getApiCreds();
   if (!creds) throw new Error('CLOB: not initialized — call initClob() first');
 
@@ -329,7 +329,7 @@ async function buildHeaders(method, path, body = '') {
 /**
  * Authenticated fetch wrapper.
  */
-async function clobFetch(method, path, body = null) {
+async function clobFetch(method: string, path: string, body: object | null = null): Promise<any> {
   // Use compact JSON (no spaces) — must match what HMAC signs
   const bodyStr = body ? JSON.stringify(body).replace(/\s+/g, '') : '';
   const headers = await buildHeaders(method, path, bodyStr);
@@ -378,7 +378,7 @@ const ORDER_TYPES = [
   'uint8',    // signatureType
 ];
 
-function orderDomain(exchangeAddr) {
+function orderDomain(exchangeAddr: string): Eip712Domain {
   return {
     name: 'Polymarket CTF Exchange',
     version: '1',
@@ -399,7 +399,16 @@ function orderDomain(exchangeAddr) {
  * @param {number} params.expiration   - unix timestamp (0 = no expiration)
  * @returns {{ order, signature }}
  */
-function signOrder(params) {
+interface SignOrderParams {
+  tokenId: string | bigint;
+  makerAmount: bigint;
+  takerAmount: bigint;
+  side?: number;
+  feeRateBps?: number;
+  negRisk?: boolean;
+  expiration?: number;
+}
+function signOrder(params: SignOrderParams): { order: Record<string, unknown>; signature: string } {
   const {
     tokenId,
     makerAmount,
@@ -468,8 +477,8 @@ function signOrder(params) {
    MODULE STATE
    ══════════════════════════════════════════ */
 
-let _privKey = null;   // Uint8Array
-let _address = null;   // EIP-55 checksum string
+let _privKey: Uint8Array | null = null;
+let _address: string | null = null;
 
 /* ══════════════════════════════════════════
    PUBLIC API
@@ -482,7 +491,7 @@ let _address = null;   // EIP-55 checksum string
  *
  * @param {string} privKeyHex - hex-encoded secp256k1 private key (no 0x prefix)
  */
-export async function initClob(privKeyHex) {
+export async function initClob(privKeyHex: string): Promise<any> {
   const cleanHex = privKeyHex.replace('0x', '');
   _privKey = h2b(cleanHex);
   _address = addressFromPriv(cleanHex);
@@ -517,7 +526,17 @@ export async function initClob(privKeyHex) {
  * @param {boolean} [params.negRisk=true]
  * @param {number} [params.expiration=0]
  */
-export async function placeOrder(params) {
+interface PlaceOrderParams {
+  tokenId: string | bigint;
+  makerAmount: bigint | number;
+  takerAmount: bigint | number;
+  side?: number;
+  orderType?: string;
+  feeRateBps?: number;
+  negRisk?: boolean;
+  expiration?: number;
+}
+export async function placeOrder(params: PlaceOrderParams): Promise<any> {
   const {
     tokenId,
     makerAmount,
@@ -561,7 +580,8 @@ export async function placeOrder(params) {
  * @param {number} price    - price per share (0.0 - 1.0, e.g. 0.55 for 55 cents)
  * @param {Object} [opts]   - { negRisk, feeRateBps, orderType }
  */
-export async function placeBuyOrder(tokenId, amount, price, opts = {}) {
+interface PlaceOrderOpts { negRisk?: boolean; feeRateBps?: number; orderType?: string; }
+export async function placeBuyOrder(tokenId: string, amount: number, price: number, opts: PlaceOrderOpts = {}): Promise<any> {
   const {
     negRisk = true,
     feeRateBps = 1000,  // 10% maker fee (Polymarket default for crypto markets)
@@ -598,7 +618,7 @@ export async function placeBuyOrder(tokenId, amount, price, opts = {}) {
  * @param {number} price    - price per share (0.0 - 1.0)
  * @param {Object} [opts]   - { negRisk, feeRateBps, orderType }
  */
-export async function placeSellOrder(tokenId, amount, price, opts = {}) {
+export async function placeSellOrder(tokenId: string, amount: number, price: number, opts: PlaceOrderOpts = {}): Promise<any> {
   const {
     negRisk = true,
     feeRateBps = 0,
@@ -625,28 +645,28 @@ export async function placeSellOrder(tokenId, amount, price, opts = {}) {
  * Cancel an open order.
  * @param {string} orderId
  */
-export async function cancelOrder(orderId) {
+export async function cancelOrder(orderId: string): Promise<any> {
   return clobFetch('DELETE', `/order/${orderId}`);
 }
 
 /**
  * Get all open orders for the authenticated wallet.
  */
-export async function getOpenOrders() {
+export async function getOpenOrders(): Promise<any> {
   return clobFetch('GET', '/data/orders');
 }
 
 /**
  * Get trade history for the authenticated wallet.
  */
-export async function getTrades() {
+export async function getTrades(): Promise<any> {
   return clobFetch('GET', '/trades');
 }
 
 /**
  * Get CLOB server time (useful for clock sync checks).
  */
-export async function getServerTime() {
+export async function getServerTime(): Promise<any> {
   const resp = await fetch(`${CLOB_BASE}/data/time`);
   return resp.json();
 }
@@ -654,7 +674,7 @@ export async function getServerTime() {
 /**
  * Return stored API credentials (or null if not authenticated).
  */
-export function getApiCreds() {
+export function getApiCreds(): any {
   try {
     const raw = localStorage.getItem(CREDS_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -666,7 +686,7 @@ export function getApiCreds() {
 /**
  * Clear stored API credentials and module state.
  */
-export function clearCreds() {
+export function clearCreds(): void {
   localStorage.removeItem(CREDS_KEY);
   _privKey = null;
   _address = null;
@@ -675,7 +695,7 @@ export function clearCreds() {
 /**
  * Get the wallet address associated with the current session.
  */
-export function getAddress() {
+export function getAddress(): string | null {
   return _address;
 }
 

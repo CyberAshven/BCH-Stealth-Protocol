@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Global Reactive State Store
    ══════════════════════════════════════════
@@ -12,21 +11,24 @@
      unsub(); // cleanup
    ══════════════════════════════════════════ */
 
-const _state = {};
-const _listeners = {};   // key -> Set<callback>
-const _globalListeners = new Set(); // listen to ALL changes
+type Listener = (value: unknown, prev: unknown, key: string) => void;
+type GlobalListener = (key: string, value: unknown, prev: unknown) => void;
+
+const _state: Record<string, unknown> = {};
+const _listeners: Record<string, Set<Listener>> = {};
+const _globalListeners = new Set<GlobalListener>();
 
 /* ── Read ── */
-export function get(key) {
+export function get(key: string): unknown {
   return _state[key];
 }
 
-export function getAll() {
+export function getAll(): Record<string, unknown> {
   return { ..._state };
 }
 
 /* ── Write ── */
-export function set(key, value) {
+export function set(key: string, value: unknown): void {
   const prev = _state[key];
   _state[key] = value;
   // Notify key-specific listeners
@@ -42,13 +44,13 @@ export function set(key, value) {
 }
 
 /* ── Merge (for nested objects like balances) ── */
-export function merge(key, partial) {
-  const current = _state[key] || {};
+export function merge(key: string, partial: Record<string, unknown>): void {
+  const current = (_state[key] as Record<string, unknown>) || {};
   set(key, { ...current, ...partial });
 }
 
 /* ── Subscribe to a specific key ── */
-export function subscribe(key, callback) {
+export function subscribe(key: string, callback: Listener): () => void {
   if (!_listeners[key]) _listeners[key] = new Set();
   _listeners[key].add(callback);
   // Return unsubscribe function
@@ -56,13 +58,13 @@ export function subscribe(key, callback) {
 }
 
 /* ── Subscribe to ALL state changes ── */
-export function subscribeAll(callback) {
+export function subscribeAll(callback: GlobalListener): () => void {
   _globalListeners.add(callback);
   return () => _globalListeners.delete(callback);
 }
 
 /* ── Hydrate from localStorage ── */
-export function hydrate(key, localStorageKey, parser = JSON.parse) {
+export function hydrate(key: string, localStorageKey: string, parser: (raw: string) => unknown = JSON.parse): void {
   try {
     const raw = localStorage.getItem(localStorageKey);
     if (raw !== null) {
@@ -72,7 +74,7 @@ export function hydrate(key, localStorageKey, parser = JSON.parse) {
 }
 
 /* ── Persist to localStorage on change ── */
-export function persist(key, localStorageKey, serializer = JSON.stringify) {
+export function persist(key: string, localStorageKey: string, serializer: (val: unknown) => string = JSON.stringify): void {
   subscribe(key, (val) => {
     try {
       if (val === undefined || val === null) localStorage.removeItem(localStorageKey);

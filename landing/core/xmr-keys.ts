@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    xmr-keys.js — Monero Key Derivation
    ══════════════════════════════════════════
@@ -52,7 +51,7 @@ function keccakF1600(state) {
   }
 }
 
-export function keccak256(data) {
+export function keccak256(data: Uint8Array): Uint8Array {
   return new Uint8Array(_nobleKeccak(data));
 }
 
@@ -60,7 +59,7 @@ export function keccak256(data) {
 const L = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3edn;
 
 /* ── Scalar reduce mod L ── */
-export function scReduce32(bytes) {
+export function scReduce32(bytes: Uint8Array): Uint8Array {
   let n = 0n;
   for (let i = 31; i >= 0; i--) n = (n << 8n) | BigInt(bytes[i]);
   n = n % L;
@@ -72,7 +71,7 @@ export function scReduce32(bytes) {
 /* ── Ed25519 point multiply (pub from priv) ── */
 const G_ED = ed25519.ExtendedPoint.BASE;
 
-export function xmrPubFromPriv(privLE) {
+export function xmrPubFromPriv(privLE: Uint8Array): Uint8Array {
   let n = 0n;
   for (let i = 31; i >= 0; i--) n = (n << 8n) | BigInt(privLE[i]);
   const point = G_ED.multiply(n);
@@ -80,7 +79,7 @@ export function xmrPubFromPriv(privLE) {
 }
 
 /* ── View key from spend key ── */
-export function xmrViewKeyFromSpend(spendPriv) {
+export function xmrViewKeyFromSpend(spendPriv: Uint8Array): Uint8Array {
   return scReduce32(keccak256(spendPriv));
 }
 
@@ -88,7 +87,7 @@ export function xmrViewKeyFromSpend(spendPriv) {
 const XMR_ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const XMR_BLOCK_SIZES = [0, 2, 3, 5, 6, 7, 9, 10, 11];
 
-function _xmrBase58Block(data, padLen) {
+function _xmrBase58Block(data: Uint8Array, padLen: number): string {
   let n = 0n;
   for (let i = 0; i < data.length; i++) n = (n << 8n) | BigInt(data[i]);
   let s = '';
@@ -97,7 +96,7 @@ function _xmrBase58Block(data, padLen) {
   return s;
 }
 
-export function xmrBase58Encode(data) {
+export function xmrBase58Encode(data: Uint8Array): string {
   let result = '';
   const fullBlocks = Math.floor(data.length / 8);
   for (let i = 0; i < fullBlocks; i++) result += _xmrBase58Block(data.slice(i * 8, i * 8 + 8), 11);
@@ -107,7 +106,7 @@ export function xmrBase58Encode(data) {
 }
 
 /* ── Monero standard address ── */
-export function xmrAddress(pubSpend, pubView, network = 18) {
+export function xmrAddress(pubSpend: Uint8Array, pubView: Uint8Array, network: number = 18): string {
   const d = new Uint8Array(1 + 32 + 32);
   d[0] = network;
   d.set(pubSpend, 1);
@@ -120,13 +119,15 @@ export function xmrAddress(pubSpend, pubView, network = 18) {
 }
 
 /* ── Derive full XMR key set from BIP32 account node ── */
-export function deriveXmrKeys(acctPriv, acctChain, bip32Child) {
+type Bip32ChildFn = (key: Uint8Array, chain: Uint8Array, idx: number) => { priv?: Uint8Array; pub?: Uint8Array; chain: Uint8Array };
+
+export function deriveXmrKeys(acctPriv: Uint8Array, acctChain: Uint8Array, bip32Child: Bip32ChildFn): { spendPriv: Uint8Array; spendPub: Uint8Array; viewPriv: Uint8Array; viewPub: Uint8Array; addr: string } {
   // m/44'/145'/0'/5 (non-hardened child at index 5)
   const xmrChain = bip32Child(acctPriv, acctChain, 5);
   // m/44'/145'/0'/5/0
-  const xmrNode = bip32Child(xmrChain.priv || xmrChain.pub, xmrChain.chain, 0);
+  const xmrNode = bip32Child((xmrChain.priv ?? xmrChain.pub)!, xmrChain.chain, 0);
 
-  const spendPriv = scReduce32(xmrNode.priv);
+  const spendPriv = scReduce32(xmrNode.priv!);
   const spendPub = xmrPubFromPriv(spendPriv);
   const viewPriv = xmrViewKeyFromSpend(spendPriv);
   const viewPub = xmrPubFromPriv(viewPriv);
@@ -136,6 +137,6 @@ export function deriveXmrKeys(acctPriv, acctChain, bip32Child) {
 }
 
 /* ── Hex helpers ── */
-export const b2h = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
-export const h2b = h => new Uint8Array(h.match(/.{2}/g).map(x => parseInt(x, 16)));
+export const b2h = (b: Uint8Array): string => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+export const h2b = (h: string): Uint8Array => new Uint8Array(h.match(/.{2}/g)!.map(x => parseInt(x, 16)));
 

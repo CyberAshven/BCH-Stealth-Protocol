@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    send-legacy.js — BTC & LTC P2PKH Transaction Builder
    ══════════════════════════════════════════
@@ -11,12 +10,12 @@ import { sha256 }    from '../lib/noble-hashes.js';
 import { ripemd160 }  from '../lib/noble-hashes.js';
 
 /* ── Byte helpers ── */
-const h2b = h => new Uint8Array(h.match(/.{2}/g).map(x => parseInt(x, 16)));
-const b2h = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
-function concat(...a) { const r = new Uint8Array(a.reduce((s, x) => s + x.length, 0)); let o = 0; for (const x of a) { r.set(x, o); o += x.length; } return r; }
-function u32LE(v) { const b = new Uint8Array(4); b[0]=v&0xff; b[1]=(v>>8)&0xff; b[2]=(v>>16)&0xff; b[3]=(v>>24)&0xff; return b; }
-function u64LE(v) { const b = new Uint8Array(8); const lo=v&0xffffffff, hi=Math.floor(v/0x100000000); b[0]=lo&0xff; b[1]=(lo>>8)&0xff; b[2]=(lo>>16)&0xff; b[3]=(lo>>24)&0xff; b[4]=hi&0xff; b[5]=(hi>>8)&0xff; b[6]=(hi>>16)&0xff; b[7]=(hi>>24)&0xff; return b; }
-function varint(v) { if (v < 0xfd) return new Uint8Array([v]); const b = new Uint8Array(3); b[0]=0xfd; b[1]=v&0xff; b[2]=(v>>8)&0xff; return b; }
+const h2b = (h: string): Uint8Array => new Uint8Array(h.match(/.{2}/g)!.map(x => parseInt(x, 16)));
+const b2h = (b: Uint8Array): string => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+function concat(...a: Uint8Array[]): Uint8Array { const r = new Uint8Array(a.reduce((s, x) => s + x.length, 0)); let o = 0; for (const x of a) { r.set(x, o); o += x.length; } return r; }
+function u32LE(v: number): Uint8Array { const b = new Uint8Array(4); b[0]=v&0xff; b[1]=(v>>8)&0xff; b[2]=(v>>16)&0xff; b[3]=(v>>24)&0xff; return b; }
+function u64LE(v: number): Uint8Array { const b = new Uint8Array(8); const lo=v&0xffffffff, hi=Math.floor(v/0x100000000); b[0]=lo&0xff; b[1]=(lo>>8)&0xff; b[2]=(lo>>16)&0xff; b[3]=(lo>>24)&0xff; b[4]=hi&0xff; b[5]=(hi>>8)&0xff; b[6]=(hi>>16)&0xff; b[7]=(hi>>24)&0xff; return b; }
+function varint(v: number): Uint8Array { if (v < 0xfd) return new Uint8Array([v]); const b = new Uint8Array(3); b[0]=0xfd; b[1]=v&0xff; b[2]=(v>>8)&0xff; return b; }
 
 /* ── P2PKH script: OP_DUP OP_HASH160 <20> hash160 OP_EQUALVERIFY OP_CHECKSIG ── */
 function p2pkhScript(hash160) {
@@ -49,15 +48,15 @@ function base58CheckEncode(versionByte, hash160) {
 }
 
 /* ── Address derivation ── */
-export function btcAddr(pubKey33) {
+export function btcAddr(pubKey33: Uint8Array): string {
   return base58CheckEncode(0x00, ripemd160(sha256(pubKey33)));
 }
-export function ltcAddr(pubKey33) {
+export function ltcAddr(pubKey33: Uint8Array): string {
   return base58CheckEncode(0x30, ripemd160(sha256(pubKey33)));
 }
 
 /* ── Scripthash for Electrum ── */
-export function addrScriptHash(hash160) {
+export function addrScriptHash(hash160: Uint8Array): string {
   const script = p2pkhScript(hash160);
   return b2h(sha256(script).reverse());
 }
@@ -69,7 +68,19 @@ export function addrScriptHash(hash160) {
    BTC: txVersion=1, LTC: txVersion=2.
    ══════════════════════════════════════════ */
 
-function buildSignedLegacyTx(inputs, outputs, privKey, pubKey33, txVersion = 1) {
+interface LegacyUtxo { txid: string; vout: number; value: number; }
+interface LegacyOutput { value: number; script: Uint8Array; }
+interface SendLegacyParams {
+  toAddress: string;
+  amountSats: number;
+  feeRate?: number;
+  utxos: LegacyUtxo[];
+  privKey: Uint8Array;
+  pubKey: Uint8Array;
+  sendMax?: boolean;
+}
+
+function buildSignedLegacyTx(inputs: LegacyUtxo[], outputs: LegacyOutput[], privKey: Uint8Array, pubKey33: Uint8Array, txVersion: number = 1): string {
   const myScript = p2pkhScript(ripemd160(sha256(pubKey33)));
 
   // Sign each input
@@ -126,7 +137,7 @@ function buildSignedLegacyTx(inputs, outputs, privKey, pubKey33, txVersion = 1) 
 /* ══════════════════════════════════════════
    SEND BTC
    ══════════════════════════════════════════ */
-export async function sendBtc({ toAddress, amountSats, feeRate = 2, utxos, privKey, pubKey, sendMax = false }) {
+export async function sendBtc({ toAddress, amountSats, feeRate = 2, utxos, privKey, pubKey, sendMax = false }: SendLegacyParams): Promise<{ txid: string; rawHex: string; fee: number; change: number }> {
   if (!utxos?.length) throw new Error('No UTXOs available');
   if (!privKey || !pubKey) throw new Error('No signing key');
 
@@ -171,8 +182,8 @@ export async function sendBtc({ toAddress, amountSats, feeRate = 2, utxos, privK
   const rawHex = buildSignedLegacyTx(selected, outputs, privKey, pubKey, 1);
 
   // Broadcast via Electrum
-  if (!window._btcCall) throw new Error('BTC Electrum not connected');
-  const result = await window._btcCall('blockchain.transaction.broadcast', [rawHex]);
+  if (!(window as any)._btcCall) throw new Error('BTC Electrum not connected');
+  const result = await (window as any)._btcCall('blockchain.transaction.broadcast', [rawHex]);
 
   if (result && typeof result === 'string' && result.length === 64) {
     return { txid: result, rawHex, fee: realFee, change };
@@ -183,7 +194,7 @@ export async function sendBtc({ toAddress, amountSats, feeRate = 2, utxos, privK
 /* ══════════════════════════════════════════
    SEND LTC
    ══════════════════════════════════════════ */
-export async function sendLtc({ toAddress, amountSats, feeRate = 2, utxos, privKey, pubKey, sendMax = false }) {
+export async function sendLtc({ toAddress, amountSats, feeRate = 2, utxos, privKey, pubKey, sendMax = false }: SendLegacyParams): Promise<{ txid: string; rawHex: string; fee: number; change: number }> {
   if (!utxos?.length) throw new Error('No UTXOs available');
   if (!privKey || !pubKey) throw new Error('No signing key');
 

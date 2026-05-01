@@ -531,7 +531,7 @@ async function mount(container) {
     return;
   }
   await _loadCrypto();
-  _FV = JSON.parse(localStorage.getItem("00_ep_fulcrum") || "null") || ["wss://bch.imaginary.cash:50004"];
+  _FV = JSON.parse(localStorage.getItem("00_ep_fulcrum") || "null") || ["wss://bch.imaginary.cash:50004", "wss://electrum.imaginary.cash:50004", "wss://bch.loping.net:50004", "wss://bch.soul-dev.com:50004", "wss://electron.jochen-hoenicke.de:51004", "wss://electrumx-bch.cryptonermal.net:50004", "wss://cashnode.bch.ninja:50004", "wss://electroncash.dk:50004"];
   _ETH_RPC = JSON.parse(localStorage.getItem("00_ep_eth_rpc") || "null") || "https://ethereum-rpc.publicnode.com";
   container.innerHTML = _template();
   document.getElementById("dt-trace-btn")?.addEventListener("click", startTrace);

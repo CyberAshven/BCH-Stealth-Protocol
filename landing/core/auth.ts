@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Authentication & Session
    ══════════════════════════════════════════
@@ -12,16 +11,48 @@
 
 import { sha256 } from '../lib/noble-hashes.js';
 import { secp256k1 } from '../lib/noble-curves.js';
-import { deriveBchPriv, deriveStealth, bip32Child, deriveAccountNode } from './hd.js';
-import { pubHashToCashAddr } from './cashaddr.js';
+import { deriveBchPriv, deriveStealth, bip32Child, bip32ChildPub, deriveAccountNode } from './hd.js';
+import { pubHashToCashAddr, cashAddrToHash20 } from './cashaddr.js';
 import { b2h, h2b, utf8, rand } from './utils.js';
 import { ripemd160 } from '../lib/noble-hashes.js';
 
+interface AuthKeys {
+  privKey: Uint8Array | null;
+  pubKey: Uint8Array | null;
+  hash160: Uint8Array | null;
+  bchAddr: string;
+  acctPriv: Uint8Array | null;
+  acctChain: Uint8Array | null;
+  sessionPriv: Uint8Array;
+  sessionPub: string;
+  stealthSpendPriv: Uint8Array | null;
+  stealthSpendPub: Uint8Array | null;
+  stealthScanPriv: Uint8Array | null;
+  stealthScanPub: Uint8Array | null;
+  stealthCode: string | null;
+  xmr?: unknown;
+  ledger?: boolean;
+  walletConnect?: boolean;
+}
+
+interface Profile {
+  type?: string;
+  seed?: string;
+  seedHex?: string;
+  bchPrivHex?: string;
+  acctPrivHex?: string;
+  acctChainHex?: string;
+  wif?: string;
+  priv?: string;
+}
+
+type AuthListener = (event: 'unlock' | 'lock' | 'disconnect', keys: AuthKeys | null) => void;
+
 /* ── Private state (never exposed) ── */
-let _keys = null;
-let _profile = null;
-let _password = null;
-let _listeners = new Set();
+let _keys: AuthKeys | null = null;
+let _profile: Profile | null = null;
+let _password: string | null = null;
+let _listeners = new Set<AuthListener>();
 
 const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
 
@@ -29,32 +60,32 @@ const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
 /* Compatible with wallet.html v1 format: JSON { v:1, salt:hex, iv:hex, data:hex } */
 /* PBKDF2 200,000 iterations (matches v1) */
 
-async function _pbkdf2Key(password, salt) {
+async function _pbkdf2Key(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const km = await crypto.subtle.importKey('raw', utf8(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 200000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt as unknown as ArrayBuffer, iterations: 200000 },
     km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
   );
 }
 
-async function decryptVault(vaultStr, password) {
+async function decryptVault(vaultStr: string, password: string): Promise<Profile> {
   const { salt, iv, data } = JSON.parse(vaultStr);
   const key = await _pbkdf2Key(password, h2b(salt));
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: h2b(iv) }, key, h2b(data));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: h2b(iv) as unknown as ArrayBuffer }, key, h2b(data) as unknown as ArrayBuffer);
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
-async function encryptVault(profile, password) {
+async function encryptVault(profile: Profile, password: string): Promise<string> {
   const salt = rand(16);
   const iv = rand(12);
   const key = await _pbkdf2Key(password, salt);
-  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, utf8(JSON.stringify(profile)));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, key, utf8(JSON.stringify(profile)));
   return JSON.stringify({ v: 1, salt: b2h(salt), iv: b2h(iv), data: b2h(new Uint8Array(ct)) });
 }
 
 /* ── Key derivation from profile ── */
-async function _deriveKeys(profile) {
-  let privKey, acctPriv, acctChain;
+async function _deriveKeys(profile: Profile): Promise<AuthKeys | null> {
+  let privKey: Uint8Array | undefined, acctPriv: Uint8Array | null = null, acctChain: Uint8Array | null = null;
 
   // Support both v1 (seedHex) and v2 (seed) profile formats
   const seedHex = profile.seed || profile.seedHex;
@@ -106,12 +137,12 @@ async function _deriveKeys(profile) {
   if (acctPriv && acctChain) {
     try {
       const { deriveXmrKeys } = await import('./xmr-keys.js');
-      xmrKeys = deriveXmrKeys(acctPriv, acctChain, bip32Child);
-    } catch (e) { console.warn('[auth] XMR key derivation failed:', e.message); }
+      xmrKeys = deriveXmrKeys(acctPriv, acctChain, (priv, chain, idx) => bip32Child(priv, chain, idx, false));
+    } catch (e: unknown) { console.warn('[auth] XMR key derivation failed:', (e as Error).message); }
   }
 
   return {
-    privKey,
+    privKey: privKey!,
     pubKey,
     hash160,
     bchAddr,
@@ -145,7 +176,7 @@ export function isUnlocked() {
   return _keys !== null;
 }
 
-export async function unlock(password) {
+export async function unlock(password: string): Promise<AuthKeys> {
   const vault = localStorage.getItem('00wallet_vault');
   if (!vault) throw new Error('No wallet vault found');
 
@@ -164,7 +195,7 @@ export async function unlock(password) {
 
   // Notify listeners
   for (const cb of _listeners) {
-    try { cb('unlock', _keys); } catch (e) { console.error('[auth] listener error:', e); }
+    try { cb('unlock', _keys); } catch (e: unknown) { console.error('[auth] listener error:', e); }
   }
 
   return _keys;
@@ -214,11 +245,11 @@ export function getPassword() {
    Scan addresses, set keys without private key.
    ══════════════════════════════════════════ */
 
-let _ledgerDevice = null;
-let _ledgerAddresses = [];    // [{pubKey, addr, path5}]
-let _ledgerChangePath = null;
-let _ledgerChangeHash160 = null;
-let _ledgerChangePub33 = null;
+let _ledgerDevice: unknown = null;
+let _ledgerAddresses: Array<{ pubKey: Uint8Array; addr: string; path5: number[] }> = [];
+let _ledgerChangePath: number[] | null = null;
+let _ledgerChangeHash160: Uint8Array | null = null;
+let _ledgerChangePub33: Uint8Array | null = null;
 
 export function isLedger() { return !!_ledgerDevice; }
 export function getLedgerDevice() { return _ledgerDevice; }
@@ -231,9 +262,9 @@ export function getLedgerChangeHash160() { return _ledgerChangeHash160; }
  * @param {function} onProgress - callback(message) for UI status updates
  * @returns {Promise<{addr: string, addressCount: number}>}
  */
-export async function connectLedger(onProgress) {
-  if (!window.Ledger) throw new Error('Ledger module not loaded');
-  const L = window.Ledger;
+export async function connectLedger(onProgress?: (msg: string) => void): Promise<{ addr: string; addressCount: number }> {
+  if (!(window as any).Ledger) throw new Error('Ledger module not loaded');
+  const L = (window as any).Ledger;
 
   onProgress?.('Connecting to Ledger...');
   const device = await L.connectLedger();
@@ -253,10 +284,10 @@ export async function connectLedger(onProgress) {
 
   // Scan receive (change=0) and change (change=1) branches, gap limit 20, max 50 per branch
   for (const changeIdx of [0, 1]) {
-    const changeKey = bip32Child(acctPub, acctChain, changeIdx);
+    const changeKey = bip32ChildPub(acctPub, acctChain, changeIdx);
     let gap = 0;
     for (let i = 0; i < 50 && gap < 20; i++) {
-      const child = bip32Child(changeKey.pub, changeKey.chain, i);
+      const child = bip32ChildPub(changeKey.pub, changeKey.chain, i);
       const h160 = ripemd160(sha256(child.pub));
       const addr = pubHashToCashAddr(h160);
 
@@ -264,8 +295,8 @@ export async function connectLedger(onProgress) {
       const script = new Uint8Array([0x76, 0xa9, 0x14, ...h160, 0x88, 0xac]);
       const sh = Array.from(sha256(script)).reverse().map(b => b.toString(16).padStart(2, '0')).join('');
       try {
-        const hist = await window._fvCall('blockchain.scripthash.get_history', [sh]) || [];
-        const utxos = await window._fvCall('blockchain.scripthash.listunspent', [sh]) || [];
+        const hist = await (window as any)._fvCall('blockchain.scripthash.get_history', [sh]) || [];
+        const utxos = await (window as any)._fvCall('blockchain.scripthash.listunspent', [sh]) || [];
         const path5 = _ledgerPath(changeIdx, i);
         if (hist.length > 0 || utxos.length > 0) {
           _ledgerAddresses.push({ pubKey: child.pub, addr, path5 });
@@ -279,7 +310,7 @@ export async function connectLedger(onProgress) {
 
   // If no addresses found, add the first receive address
   if (_ledgerAddresses.length === 0) {
-    const firstChild = bip32Child(bip32Child(acctPub, acctChain, 0).pub, bip32Child(acctPub, acctChain, 0).chain, 0);
+    const firstChild = bip32ChildPub(bip32ChildPub(acctPub, acctChain, 0).pub, bip32ChildPub(acctPub, acctChain, 0).chain, 0);
     const h160 = ripemd160(sha256(firstChild.pub));
     _ledgerAddresses.push({
       pubKey: firstChild.pub,
@@ -294,8 +325,8 @@ export async function connectLedger(onProgress) {
   // Setup change address: next unused internal (change=1) index
   const usedChg1 = _ledgerAddresses.filter(a => a.path5[3] === 1);
   const nextChgIdx = usedChg1.length > 0 ? Math.max(...usedChg1.map(a => a.path5[4])) + 1 : 0;
-  const chgLvl = bip32Child(acctPub, acctChain, 1);
-  const chgChild = bip32Child(chgLvl.pub, chgLvl.chain, nextChgIdx);
+  const chgLvl = bip32ChildPub(acctPub, acctChain, 1);
+  const chgChild = bip32ChildPub(chgLvl.pub, chgLvl.chain, nextChgIdx);
   const chgH160 = ripemd160(sha256(chgChild.pub));
   const chgPath = _ledgerPath(1, nextChgIdx);
   _ledgerChangeHash160 = chgH160;
@@ -339,9 +370,9 @@ export async function connectLedger(onProgress) {
  * @param {Array} outputs - [{value, script}]
  * @returns {Promise<string>} raw signed TX hex
  */
-export async function ledgerSignTx(utxos, outputs) {
+export async function ledgerSignTx(utxos: Array<{ txid: string; vout: number; value: number; addr?: string }>, outputs: Array<{ value: number; script: Uint8Array }>): Promise<string> {
   if (!_ledgerDevice) throw new Error('No Ledger connected');
-  const L = window.Ledger;
+  const L = (window as any).Ledger;
 
   // Build per-input scripts and paths
   const scripts = utxos.map(u => {
@@ -370,7 +401,7 @@ export async function ledgerSignTx(utxos, outputs) {
   return L.buildLedgerTx(utxos, sigs, pubKeys, outputs);
 }
 
-function _ledgerPath(changeIdx, addrIdx) {
+function _ledgerPath(changeIdx: number, addrIdx: number): number[] {
   return [0x8000002c, 0x80000091, 0x80000000, changeIdx, addrIdx];
 }
 
@@ -378,7 +409,7 @@ function _ledgerPath(changeIdx, addrIdx) {
    WALLETCONNECT v2 SUPPORT
    ══════════════════════════════════════════ */
 
-let _wcClient = null, _wcSession = null;
+let _wcClient: any = null, _wcSession: any = null;
 const WC_PROJECT_ID = '082bda1ddb7c62dc3aee194b5e8dc8f9';
 
 export function isWalletConnect() { return !!_wcSession; }
@@ -387,6 +418,7 @@ export function getWcSession() { return _wcSession; }
 
 async function _initWC() {
   if (_wcClient) return _wcClient;
+  // @ts-expect-error esm.sh module
   const mod = await import('https://esm.sh/@walletconnect/sign-client@2.17.5');
   const SC = mod.SignClient || mod.default;
   _wcClient = await SC.init({
@@ -396,7 +428,7 @@ async function _initWC() {
   return _wcClient;
 }
 
-export async function connectWalletConnect(onUri, onProgress) {
+export async function connectWalletConnect(onUri?: (uri: string) => void, onProgress?: (msg: string) => void): Promise<{ addr: string }> {
   onProgress?.('Loading WalletConnect SDK...');
   const client = await _initWC();
   onProgress?.('Pairing...');
@@ -434,7 +466,7 @@ export async function restoreWcSession() {
   } catch { localStorage.removeItem('00_wc_session'); return false; }
 }
 
-export async function wcSignTx(unsignedHex, sourceOutputs, userPrompt) {
+export async function wcSignTx(unsignedHex: string, sourceOutputs: unknown, userPrompt?: string): Promise<string> {
   if (!_wcClient || !_wcSession) throw new Error('WalletConnect not connected');
   const r = await _wcClient.request({ chainId: 'bch:bitcoincash', topic: _wcSession.topic, request: { method: 'bch_signTransaction', params: { transaction: unsignedHex, sourceOutputs, broadcast: false, userPrompt } } });
   if (!r?.signedTransaction) throw new Error('Signing rejected');
@@ -447,7 +479,11 @@ export async function wcDisconnect() {
   localStorage.removeItem('00_wc_session'); _notifyListeners();
 }
 
-function _wcSubEvents(client) {
+function _notifyListeners(): void {
+  for (const cb of _listeners) { try { cb(_keys ? 'unlock' : 'disconnect', _keys); } catch {} }
+}
+
+function _wcSubEvents(client: any): void {
   client.on('session_delete', () => { _wcSession = null; _keys = null; _profile = null; localStorage.removeItem('00_wc_session'); _notifyListeners(); });
   client.on('session_event', (args) => { if (args.params?.event?.name === 'addressesChanged' && _keys) { _keys.bchAddr = args.params.event.data[0]; _keys.hash160 = cashAddrToHash20(_keys.bchAddr); _notifyListeners(); } });
 }
@@ -477,13 +513,13 @@ export function disconnect() {
   }
 }
 
-export function onAuth(callback) {
+export function onAuth(callback: AuthListener): () => boolean {
   _listeners.add(callback);
   return () => _listeners.delete(callback);
 }
 
 /* ── Vault management ── */
-export async function createVault(profile, password) {
+export async function createVault(profile: Profile, password: string): Promise<AuthKeys | null> {
   const vaultB64 = await encryptVault(profile, password);
   localStorage.setItem('00wallet_vault', vaultB64);
   localStorage.setItem('00_session_auth', JSON.stringify({ p: btoa(password), ts: Date.now() }));
@@ -491,7 +527,7 @@ export async function createVault(profile, password) {
   _password = password;
   _keys = await _deriveKeys(profile);
   for (const cb of _listeners) {
-    try { cb('unlock', _keys); } catch (e) {}
+    try { cb('unlock', _keys); } catch (e: unknown) {}
   }
   return _keys;
 }

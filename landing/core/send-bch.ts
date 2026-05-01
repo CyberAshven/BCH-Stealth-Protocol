@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — BCH Send (sign + broadcast)
    ══════════════════════════════════════════
@@ -10,23 +9,39 @@ import { secp256k1 } from '../lib/noble-curves.js';
 import { sha256 } from '../lib/noble-hashes.js';
 import { ripemd160 } from '../lib/noble-hashes.js';
 
+export interface Utxo { txid: string; vout: number; value: number; addr?: string; }
+export interface Output { value: number; script: Uint8Array; }
+interface KeyPair { priv: Uint8Array; pub: Uint8Array; }
+interface SendBchParams {
+  toAddress: string;
+  amountSats: number;
+  feeRate: number;
+  utxos: Utxo[];
+  privKey?: Uint8Array;
+  pubKey?: Uint8Array;
+  changeHash160?: Uint8Array;
+  hdGetKey?: (addr: string) => Uint8Array | null;
+  opReturnData?: Uint8Array | string;
+  ledgerSign?: (utxos: Utxo[], outputs: Output[]) => Promise<string>;
+}
+
 /* ── Helpers ── */
-function b2h(bytes) { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
-function h2b(hex) { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < hex.length; i += 2) a[i/2] = parseInt(hex.substr(i, 2), 16); return a; }
-function concat(...arrs) { const out = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0)); let o = 0; for (const a of arrs) { out.set(a, o); o += a.length; } return out; }
-function u32LE(v) { const b = new Uint8Array(4); b[0]=v&0xff; b[1]=(v>>8)&0xff; b[2]=(v>>16)&0xff; b[3]=(v>>24)&0xff; return b; }
-function u64LE(v) { const b = new Uint8Array(8); const lo=v&0xffffffff, hi=Math.floor(v/0x100000000); b[0]=lo&0xff;b[1]=(lo>>8)&0xff;b[2]=(lo>>16)&0xff;b[3]=(lo>>24)&0xff;b[4]=hi&0xff;b[5]=(hi>>8)&0xff;b[6]=(hi>>16)&0xff;b[7]=(hi>>24)&0xff; return b; }
-function writeVI(v) { if (v < 0xfd) return new Uint8Array([v]); const b = new Uint8Array(3); b[0]=0xfd; b[1]=v&0xff; b[2]=(v>>8)&0xff; return b; }
-function dsha256(d) { return sha256(sha256(d)); }
-function p2pkhScript(h160) { return concat(new Uint8Array([0x76, 0xa9, 0x14]), h160, new Uint8Array([0x88, 0xac])); }
+function b2h(bytes: Uint8Array): string { return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(''); }
+function h2b(hex: string): Uint8Array { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < hex.length; i += 2) a[i/2] = parseInt(hex.substr(i, 2), 16); return a; }
+function concat(...arrs: Uint8Array[]): Uint8Array { const out = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0)); let o = 0; for (const a of arrs) { out.set(a, o); o += a.length; } return out; }
+function u32LE(v: number): Uint8Array { const b = new Uint8Array(4); b[0]=v&0xff; b[1]=(v>>8)&0xff; b[2]=(v>>16)&0xff; b[3]=(v>>24)&0xff; return b; }
+function u64LE(v: number): Uint8Array { const b = new Uint8Array(8); const lo=v&0xffffffff, hi=Math.floor(v/0x100000000); b[0]=lo&0xff;b[1]=(lo>>8)&0xff;b[2]=(lo>>16)&0xff;b[3]=(lo>>24)&0xff;b[4]=hi&0xff;b[5]=(hi>>8)&0xff;b[6]=(hi>>16)&0xff;b[7]=(hi>>24)&0xff; return b; }
+function writeVI(v: number): Uint8Array { if (v < 0xfd) return new Uint8Array([v]); const b = new Uint8Array(3); b[0]=0xfd; b[1]=v&0xff; b[2]=(v>>8)&0xff; return b; }
+function dsha256(d: Uint8Array): Uint8Array { return sha256(sha256(d)); }
+function p2pkhScript(h160: Uint8Array): Uint8Array { return concat(new Uint8Array([0x76, 0xa9, 0x14]), h160, new Uint8Array([0x88, 0xac])); }
 
 /* ── Estimate TX size ── */
-export function estimateTxSize(nIn, nOut) {
+export function estimateTxSize(nIn: number, nOut: number): number {
   return 10 + nIn * 148 + nOut * 34;
 }
 
 /* ── Build and sign BCH TX (BIP143 sighash) ── */
-export function buildSignedTx(inputs, outputs, getKeyForInput) {
+export function buildSignedTx(inputs: Utxo[], outputs: Output[], getKeyForInput: (u: Utxo, i: number) => KeyPair): string {
   // BIP143 precomputed hashes
   const hashPrevouts = dsha256(concat(...inputs.map(u => concat(h2b(u.txid).reverse(), u32LE(u.vout)))));
   const hashSequence = dsha256(concat(...inputs.map(() => u32LE(0xffffffff))));
@@ -74,7 +89,7 @@ export function buildSignedTx(inputs, outputs, getKeyForInput) {
 }
 
 /* ── Full send flow: select UTXOs, build TX, sign, broadcast ── */
-export async function sendBch({ toAddress, amountSats, feeRate, utxos, privKey, pubKey, changeHash160, hdGetKey, opReturnData, ledgerSign }) {
+export async function sendBch({ toAddress, amountSats, feeRate, utxos, privKey, pubKey, changeHash160, hdGetKey, opReturnData, ledgerSign }: SendBchParams): Promise<{ txid: string; rawHex: string; fee: number; change: number }> {
   if (!toAddress) throw new Error('Recipient address required');
   if (amountSats < 546) throw new Error('Minimum 546 sats (dust limit)');
   if (!utxos || !utxos.length) throw new Error('No UTXOs available');
@@ -134,17 +149,17 @@ export async function sendBch({ toAddress, amountSats, feeRate, utxos, privKey, 
     rawHex = buildSignedTx(selected, outputs, (u, i) => {
       // HD wallet: each UTXO may have its own key
       if (hdGetKey && u.addr) {
-        const k = hdGetKey(u.addr);
+        const k = hdGetKey(u.addr!);
         if (k) return { priv: k, pub: secp256k1.getPublicKey(k, true) };
       }
       // Fallback: main key
-      return { priv: privKey, pub: pubKey };
+      return { priv: privKey!, pub: pubKey! };
     });
   }
 
   // Broadcast via Fulcrum
-  if (!window._fvCall) throw new Error('Not connected to Fulcrum');
-  const result = await window._fvCall('blockchain.transaction.broadcast', [rawHex]);
+  if (!(window as any)._fvCall) throw new Error('Not connected to Fulcrum');
+  const result = await (window as any)._fvCall('blockchain.transaction.broadcast', [rawHex]);
 
   // Check result
   if (result && typeof result === 'string' && result.length === 64) {

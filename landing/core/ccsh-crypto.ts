@@ -1,6 +1,5 @@
-// @ts-nocheck
 /**
- * ccsh-crypto.js — CCSH (Chat Cash) cryptographic protocol module
+ * ccsh-crypto.ts — CCSH (Chat Cash) cryptographic protocol module
  *
  * Pure cryptographic primitives extracted from chat.html.
  * Zero DOM/UI dependencies. All functions are stateless except BIP39 word cache.
@@ -19,46 +18,46 @@ import { ripemd160 } from '../lib/noble-hashes.js';
 
 /* ───────────────────────── Byte utilities ───────────────────────── */
 
-const h2b = h => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)));
-const b2h = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+const h2b = (h: string): Uint8Array => new Uint8Array(h.match(/../g)!.map(x => parseInt(x, 16)));
+const b2h = (b: Uint8Array): string => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
 
-function concat(...arrs) {
+function concat(...arrs: Uint8Array[]): Uint8Array {
   const r = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0));
   let o = 0; for (const a of arrs) { r.set(a, o); o += a.length; } return r;
 }
 
-const u32LE = n => new Uint8Array([n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff]);
+const u32LE = (n: number): Uint8Array => new Uint8Array([n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff]);
 
-function u64LE(n) {
+function u64LE(n: number | bigint): Uint8Array {
   const b = new Uint8Array(8); let v = BigInt(n);
   for (let i = 0; i < 8; i++) { b[i] = Number(v & 0xffn); v >>= 8n; } return b;
 }
 
-function writeVarint(n) {
+function writeVarint(n: number): Uint8Array {
   if (n < 0xfd) return new Uint8Array([n]);
   if (n <= 0xffff) return new Uint8Array([0xfd, n & 0xff, (n >> 8) & 0xff]);
   return new Uint8Array([0xfe, n & 0xff, (n >> 8) & 0xff, (n >> 16) & 0xff, (n >> 24) & 0xff]);
 }
 
-function readVarint(b, o = 0) {
+function readVarint(b: Uint8Array, o: number = 0): { v: number; l: number } {
   const f = b[o];
   if (f < 0xfd) return { v: f, l: 1 };
   if (f === 0xfd) return { v: b[o + 1] | (b[o + 2] << 8), l: 3 };
   return { v: b[o + 1] | (b[o + 2] << 8) | (b[o + 3] << 16) | (b[o + 4] * 16777216), l: 5 };
 }
 
-const dsha256 = d => sha256(sha256(d));
+const dsha256 = (d: Uint8Array): Uint8Array => sha256(sha256(d));
 
 /* ───────────────────────── BIP32 / BIP44 ───────────────────────── */
 
 const N_SECP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
 
-function bip32Master(seed) {
+function bip32Master(seed: Uint8Array): { priv: Uint8Array; chain: Uint8Array } {
   const I = hmac(sha512, new TextEncoder().encode('Bitcoin seed'), seed);
   return { priv: I.slice(0, 32), chain: I.slice(32) };
 }
 
-function _bip32Child(priv, chain, idx, hardened) {
+function _bip32Child(priv: Uint8Array, chain: Uint8Array, idx: number, hardened: boolean): { priv: Uint8Array; chain: Uint8Array } {
   const idxBytes = new Uint8Array([idx >>> 24, (idx >>> 16) & 0xff, (idx >>> 8) & 0xff, idx & 0xff]);
   const data = hardened
     ? concat(new Uint8Array([0x00]), priv, idxBytes)
@@ -69,7 +68,7 @@ function _bip32Child(priv, chain, idx, hardened) {
   return { priv: h2b(child), chain: IR };
 }
 
-function bip44BchPriv(seed64) {
+function bip44BchPriv(seed64: Uint8Array): Uint8Array {
   let n = bip32Master(seed64);
   n = _bip32Child(n.priv, n.chain, 0x8000002c, true); // 44'
   n = _bip32Child(n.priv, n.chain, 0x80000091, true); // 145' (BCH)
@@ -83,7 +82,7 @@ function bip44BchPriv(seed64) {
 
 const _CA_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
-function _caPolymod(v) {
+function _caPolymod(v: number[]): bigint {
   const g = [0x98f2bc8e61n, 0x79b76d99e2n, 0xf33e5fb3c4n, 0xae2eabe2a8n, 0x1e4f43e470n];
   let c = 1n;
   for (const x of v) {
@@ -94,9 +93,9 @@ function _caPolymod(v) {
   return c ^ 1n;
 }
 
-function _caExpand(prefix) { const r = []; for (const ch of prefix) r.push(ch.charCodeAt(0) & 0x1f); r.push(0); return r; }
+function _caExpand(prefix: string): number[] { const r: number[] = []; for (const ch of prefix) r.push(ch.charCodeAt(0) & 0x1f); r.push(0); return r; }
 
-function pubHashToCashAddr(hash20, prefix = 'bitcoincash') {
+function pubHashToCashAddr(hash20: number[] | Uint8Array, prefix: string = 'bitcoincash'): string {
   const payload = [0x00, ...hash20]; const d5 = []; let acc = 0, bits = 0;
   for (const b of payload) { acc = (acc << 8) | b; bits += 8; while (bits >= 5) { bits -= 5; d5.push((acc >> bits) & 0x1f); } }
   if (bits > 0) d5.push((acc << (5 - bits)) & 0x1f);
@@ -106,7 +105,7 @@ function pubHashToCashAddr(hash20, prefix = 'bitcoincash') {
   return prefix + ':' + d5.map(x => _CA_CHARSET[x]).join('') + chkStr;
 }
 
-function cashAddrToHash20(addr) {
+function cashAddrToHash20(addr: string): Uint8Array {
   const payload = addr.includes(':') ? addr.split(':')[1] : addr;
   const d5 = Array.from(payload.slice(0, -8), c => _CA_CHARSET.indexOf(c));
   let acc = 0, bits = 0; const bytes = [];
@@ -114,13 +113,13 @@ function cashAddrToHash20(addr) {
   return new Uint8Array(bytes.slice(1, 21));
 }
 
-function privToBchAddr(priv32) {
+function privToBchAddr(priv32: Uint8Array): string {
   const pub = secp256k1.getPublicKey(priv32, true);
   const hash = ripemd160(sha256(pub));
   return pubHashToCashAddr(Array.from(hash));
 }
 
-function _addrSH(addr) {
+function _addrSH(addr: string): string {
   const h = cashAddrToHash20(addr);
   const script = new Uint8Array([0x76, 0xa9, 0x14, ...h, 0x88, 0xac]);
   return b2h(sha256(script).reverse());
@@ -128,7 +127,7 @@ function _addrSH(addr) {
 
 /* ──────────────────── Vault AES-256-GCM encryption ─────────────── */
 
-async function _pbkdf2Key(password, salt) {
+async function _pbkdf2Key(password: string, salt: Uint8Array): Promise<CryptoKey> {
   const enc = new TextEncoder();
   const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
@@ -137,7 +136,7 @@ async function _pbkdf2Key(password, salt) {
   );
 }
 
-async function encryptVault(profile, password) {
+async function encryptVault(profile: unknown, password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv   = crypto.getRandomValues(new Uint8Array(12));
   const key  = await _pbkdf2Key(password, salt);
@@ -146,7 +145,7 @@ async function encryptVault(profile, password) {
   return JSON.stringify({ v: 1, salt: b2h(salt), iv: b2h(iv), data: b2h(new Uint8Array(ct)) });
 }
 
-async function decryptVault(enc_json, password) {
+async function decryptVault(enc_json: string, password: string): Promise<unknown> {
   const { salt, iv, data } = JSON.parse(enc_json);
   const key = await _pbkdf2Key(password, h2b(salt));
   const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: h2b(iv) }, key, h2b(data));
@@ -157,7 +156,11 @@ async function decryptVault(enc_json, password) {
 
 const CCSH_MAGIC = new Uint8Array([0x43, 0x43, 0x53, 0x48]);
 
-function packPacket(pkt) {
+interface CcshPacket {
+  msg_type?: number; flags?: number; msg_id: Uint8Array; sender_pub: Uint8Array;
+  chunk_index: number; chunk_total: number; ciphertext_chunk: Uint8Array;
+}
+function packPacket(pkt: CcshPacket): Uint8Array {
   const c = pkt.ciphertext_chunk;
   return concat(
     CCSH_MAGIC,
@@ -170,7 +173,7 @@ function packPacket(pkt) {
   );
 }
 
-function unpackPacket(raw) {
+function unpackPacket(raw: Uint8Array): CcshPacket & { msg_type: number } {
   if (raw.length < 61) throw new Error('packet too short');
   if (raw[0] !== 0x43 || raw[1] !== 0x43 || raw[2] !== 0x53 || raw[3] !== 0x48) throw new Error('bad magic');
   if (raw[4] !== 0x01) throw new Error('bad version');
@@ -184,7 +187,7 @@ function unpackPacket(raw) {
            ciphertext_chunk: raw.slice(pos, pos + clen) };
 }
 
-async function ccshEncryptMsg(text, recipientPubHex, senderPriv32, senderPub32, msgType = 0x01) {
+async function ccshEncryptMsg(text: string, recipientPubHex: string, senderPriv32: Uint8Array, senderPub32: Uint8Array, msgType: number = 0x01): Promise<Uint8Array> {
   const recipientPub = h2b(recipientPubHex);
   const ephPriv = crypto.getRandomValues(new Uint8Array(32));
   const ephPub  = x25519.getPublicKey(ephPriv);
@@ -200,7 +203,7 @@ async function ccshEncryptMsg(text, recipientPubHex, senderPriv32, senderPub32, 
                       ciphertext_chunk, msg_type: msgType, flags: 0 });
 }
 
-async function ccshDecryptPacket(raw, myPriv32) {
+async function ccshDecryptPacket(raw: Uint8Array, myPriv32: Uint8Array): Promise<{ text: string; senderPubHex: string; msgType: number }> {
   const pkt  = unpackPacket(raw);
   const cc   = pkt.ciphertext_chunk;
   const shared = x25519.getSharedSecret(myPriv32, cc.slice(0, 32));
@@ -219,37 +222,37 @@ const MSG_SPLIT_RELAY = 0x11;
 const FLAG_SPLIT = 0x01;
 const NOSTR_KIND_CCSH = 21059;
 
-function xorSplit(data) {
+function xorSplit(data: Uint8Array): [Uint8Array, Uint8Array] {
   const pad = crypto.getRandomValues(new Uint8Array(data.length));
   const shard = new Uint8Array(data.length);
   for (let i = 0; i < data.length; i++) shard[i] = data[i] ^ pad[i];
   return [shard, pad];
 }
 
-function xorMerge(shard, pad) {
+function xorMerge(shard: Uint8Array, pad: Uint8Array): Uint8Array {
   if (shard.length !== pad.length) throw new Error('XOR length mismatch');
   const out = new Uint8Array(shard.length);
   for (let i = 0; i < shard.length; i++) out[i] = shard[i] ^ pad[i];
   return out;
 }
 
-function deriveKeyChain(shared) { return sha256(concat(shared, new TextEncoder().encode('ccsh-chain'))); }
-function deriveKeyRelay(shared) { return sha256(concat(shared, new TextEncoder().encode('ccsh-relay'))); }
+function deriveKeyChain(shared: Uint8Array): Uint8Array { return sha256(concat(shared, new TextEncoder().encode('ccsh-chain'))); }
+function deriveKeyRelay(shared: Uint8Array): Uint8Array { return sha256(concat(shared, new TextEncoder().encode('ccsh-relay'))); }
 
-async function aesWrap(data, key) {
+async function aesWrap(data: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['encrypt']);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, ck, data));
   return concat(nonce, ct);
 }
 
-async function aesUnwrap(blob, key) {
+async function aesUnwrap(blob: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   if (blob.length < 12) throw new Error('blob too short');
   const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['decrypt']);
   return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12), tagLength: 128 }, ck, blob.slice(12)));
 }
 
-async function splitEncrypt(plaintext, recipientPubHex) {
+async function splitEncrypt(plaintext: string, recipientPubHex: string): Promise<{ chainBlob: Uint8Array; relayBlob: Uint8Array; ephPub: Uint8Array }> {
   const recipientPub = h2b(recipientPubHex);
   const ephPriv = crypto.getRandomValues(new Uint8Array(32));
   const ephPub = x25519.getPublicKey(ephPriv);
@@ -265,7 +268,7 @@ async function splitEncrypt(plaintext, recipientPubHex) {
   return { chainBlob, relayBlob, ephPub };
 }
 
-async function splitDecrypt(chainBlob, relayBlob, ephPub, myPriv32) {
+async function splitDecrypt(chainBlob: Uint8Array, relayBlob: Uint8Array, ephPub: Uint8Array, myPriv32: Uint8Array): Promise<string> {
   const shared = x25519.getSharedSecret(myPriv32, ephPub);
   const shard = await aesUnwrap(chainBlob, deriveKeyChain(shared));
   const pad = await aesUnwrap(relayBlob, deriveKeyRelay(shared));
@@ -277,7 +280,7 @@ async function splitDecrypt(chainBlob, relayBlob, ephPub, myPriv32) {
   return new TextDecoder().decode(pt);
 }
 
-function packV2(pkt) {
+function packV2(pkt: CcshPacket): Uint8Array {
   const c = pkt.ciphertext_chunk;
   return concat(
     CCSH_MAGIC,
@@ -290,7 +293,7 @@ function packV2(pkt) {
   );
 }
 
-function unpackAny(raw) {
+function unpackAny(raw: Uint8Array): CcshPacket & { version: number; msg_type: number; flags: number } {
   if (raw.length < 61) throw new Error('packet too short');
   if (raw[0] !== 0x43 || raw[1] !== 0x43 || raw[2] !== 0x53 || raw[3] !== 0x48) throw new Error('bad magic');
   let pos = 7;
@@ -305,15 +308,15 @@ function unpackAny(raw) {
 
 /* ──────────────────────── Nostr helpers ─────────────────────────── */
 
-function _deriveNostrPriv(x25519PrivHex) {
+function _deriveNostrPriv(x25519PrivHex: string): Uint8Array {
   return sha256(concat(h2b(x25519PrivHex), new TextEncoder().encode('ccsh-nostr')));
 }
 
-function _nostrPubFromPriv(privBytes) {
+function _nostrPubFromPriv(privBytes: Uint8Array): string {
   return b2h(secp256k1.getPublicKey(privBytes, true).slice(1));
 }
 
-async function _makeNostrEvent(privBytes, kind, content, tags) {
+async function _makeNostrEvent(privBytes: Uint8Array, kind: number, content: string, tags: unknown[][]): Promise<Record<string, unknown>> {
   const pub = _nostrPubFromPriv(privBytes);
   const created_at = Math.floor(Date.now() / 1000);
   const idHash = sha256(new TextEncoder().encode(JSON.stringify([0, pub, created_at, kind, tags, content])));
@@ -323,9 +326,9 @@ async function _makeNostrEvent(privBytes, kind, content, tags) {
 
 /* ─────────────────────── BIP39 mnemonic ────────────────────────── */
 
-let _bip39Words = null, _bip39Loading = null;
+let _bip39Words: string[] | null = null, _bip39Loading: Promise<string[] | null> | null = null;
 
-async function loadBip39Words() {
+async function loadBip39Words(): Promise<string[] | null> {
   if (_bip39Words) return _bip39Words;
   if (_bip39Loading) return _bip39Loading;
   _bip39Loading = fetch('https://raw.githubusercontent.com/trezor/python-mnemonic/master/src/mnemonic/wordlist/english.txt')
@@ -335,7 +338,7 @@ async function loadBip39Words() {
   return _bip39Loading;
 }
 
-async function bip39Generate() {
+async function bip39Generate(): Promise<string[]> {
   const words = await loadBip39Words();
   if (!words || words.length !== 2048) throw new Error('wordlist unavailable');
   const ent = crypto.getRandomValues(new Uint8Array(16));
@@ -353,7 +356,7 @@ async function bip39Generate() {
   return indices.map(i => words[i]);
 }
 
-async function bip39Seed(phrase) {
+async function bip39Seed(phrase: string): Promise<Uint8Array> {
   const enc = new TextEncoder();
   const km  = await crypto.subtle.importKey('raw', enc.encode(phrase.normalize('NFKD')), 'PBKDF2', false, ['deriveBits']);
   const sb  = await crypto.subtle.deriveBits(
@@ -361,7 +364,7 @@ async function bip39Seed(phrase) {
   return new Uint8Array(sb);
 }
 
-function deriveProfileFromSeed(seed64) {
+function deriveProfileFromSeed(seed64: Uint8Array): { x25519_priv_hex: string; x25519_pub_hex: string; bch_priv_hex: string; bch_address: string } {
   const x25519Priv = seed64.slice(0, 32);
   const x25519Pub  = x25519.getPublicKey(x25519Priv);
   const bchPriv    = bip44BchPriv(seed64);
@@ -375,19 +378,22 @@ function deriveProfileFromSeed(seed64) {
 
 /* ─────────────────────── BCH TX builder ────────────────────────── */
 
-function p2pkhScript(hash20) {
+interface TxInput { txidLE: Uint8Array; vout: number; sequence: number; scriptSig: Uint8Array; }
+interface TxOutput { value: number; script: Uint8Array; }
+
+function p2pkhScript(hash20: Uint8Array): Uint8Array {
   return concat(new Uint8Array([0x76, 0xa9, 0x14]), hash20, new Uint8Array([0x88, 0xac]));
 }
 
-function p2pkhAddrScript(cashAddr) { return p2pkhScript(cashAddrToHash20(cashAddr)); }
+function p2pkhAddrScript(cashAddr: string): Uint8Array { return p2pkhScript(cashAddrToHash20(cashAddr)); }
 
-function opReturnScript(data) {
+function opReturnScript(data: Uint8Array): Uint8Array {
   if (data.length <= 75) return concat(new Uint8Array([0x6a, data.length]), data);
   if (data.length <= 255) return concat(new Uint8Array([0x6a, 0x4c, data.length]), data);
   return concat(new Uint8Array([0x6a, 0x4d, data.length & 0xff, (data.length >> 8) & 0xff]), data);
 }
 
-function bchSighash(version, locktime, inputs, outputs, i, utxoScript, utxoValue) {
+function bchSighash(version: number, locktime: number, inputs: TxInput[], outputs: TxOutput[], i: number, utxoScript: Uint8Array, utxoValue: number): Uint8Array {
   const prevouts = concat(...inputs.map(x => concat(x.txidLE, u32LE(x.vout))));
   const seqs     = concat(...inputs.map(x => u32LE(x.sequence)));
   const outsData = concat(...outputs.map(o => concat(u64LE(o.value), writeVarint(o.script.length), o.script)));
@@ -403,7 +409,7 @@ function bchSighash(version, locktime, inputs, outputs, i, utxoScript, utxoValue
   return dsha256(pre);
 }
 
-function serializeTx(version, locktime, inputs, outputs) {
+function serializeTx(version: number, locktime: number, inputs: TxInput[], outputs: TxOutput[]): Uint8Array {
   return concat(
     u32LE(version),
     writeVarint(inputs.length),
@@ -416,7 +422,7 @@ function serializeTx(version, locktime, inputs, outputs) {
 
 /* ─────────────────────── TX parser ─────────────────────────────── */
 
-function parseTxOpReturns(rawHex) {
+function parseTxOpReturns(rawHex: string): Uint8Array[] {
   try {
     const raw = h2b(rawHex); let pos = 4;
     let { v: inCount, l } = readVarint(raw, pos); pos += l;
@@ -442,7 +448,7 @@ function parseTxOpReturns(rawHex) {
   } catch { return []; }
 }
 
-function extractSenderBchAddr(rawHex) {
+function extractSenderBchAddr(rawHex: string): string | null {
   try {
     const raw = h2b(rawHex);
     let pos = 4;

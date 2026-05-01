@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Multi-chain Address Derivation
    ══════════════════════════════════════════
@@ -15,7 +14,7 @@ import { concat, b2h, h2b, utf8, dsha256 } from './utils.js';
 import { base58Check } from './cashaddr.js';
 
 /* ── ETH (EIP-55 checksum) ── */
-export function ethAddr(pubkey33) {
+export function ethAddr(pubkey33: Uint8Array): string {
   const uncompressed = secp256k1.ProjectivePoint.fromHex(pubkey33).toRawBytes(false).slice(1);
   const hash = keccak_256(uncompressed);
   const raw = hash.slice(12);
@@ -27,19 +26,19 @@ export function ethAddr(pubkey33) {
 }
 
 /* ── BTC (P2PKH, version 0x00) ── */
-export function btcAddr(pubkey33) {
+export function btcAddr(pubkey33: Uint8Array): string {
   const hash = ripemd160(sha256(pubkey33));
   return base58Check(concat(new Uint8Array([0x00]), hash));
 }
 
 /* ── LTC (P2PKH, version 0x30) ── */
-export function ltcAddr(pubkey33) {
+export function ltcAddr(pubkey33: Uint8Array): string {
   const hash = ripemd160(sha256(pubkey33));
   return base58Check(concat(new Uint8Array([0x30]), hash));
 }
 
 /* ── TRX (keccak + base58check 0x41) ── */
-export function tronAddr(pubkey33) {
+export function tronAddr(pubkey33: Uint8Array): string {
   const uncompressed = secp256k1.ProjectivePoint.fromHex(pubkey33).toRawBytes(false).slice(1);
   const hash = keccak_256(uncompressed);
   const raw = hash.slice(12);
@@ -48,7 +47,7 @@ export function tronAddr(pubkey33) {
 
 /* ── XRP (custom base58) ── */
 const XRP_ALPHABET = 'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz';
-export function xrpAddr(pubkey33) {
+export function xrpAddr(pubkey33: Uint8Array): string {
   const hash = ripemd160(sha256(pubkey33));
   const payload = concat(new Uint8Array([0x00]), hash);
   const input = concat(payload, dsha256(payload).slice(0, 4));
@@ -61,7 +60,7 @@ export function xrpAddr(pubkey33) {
 
 /* ── SOL (ed25519 pub → base58) ── */
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-export function solAddr(priv32) {
+export function solAddr(priv32: Uint8Array): string {
   const pubKey = ed25519.getPublicKey(priv32.slice(0, 32));
   let n = BigInt('0x' + b2h(pubKey));
   let str = '';
@@ -72,7 +71,7 @@ export function solAddr(priv32) {
 
 /* ── XLM (ed25519 → StrKey base32 + CRC16) ── */
 const XLM_B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-function _crc16xmodem(data) {
+function _crc16xmodem(data: Uint8Array): number {
   let crc = 0;
   for (let i = 0; i < data.length; i++) {
     crc ^= data[i] << 8;
@@ -81,13 +80,13 @@ function _crc16xmodem(data) {
   }
   return crc;
 }
-function _base32Encode(data) {
+function _base32Encode(data: Uint8Array): string {
   let bits = 0, value = 0, out = '';
   for (let i = 0; i < data.length; i++) { value = (value << 8) | data[i]; bits += 8; while (bits >= 5) { bits -= 5; out += XLM_B32[(value >> bits) & 31]; } }
   if (bits > 0) out += XLM_B32[(value << (5 - bits)) & 31];
   return out;
 }
-export function xlmAddr(priv32) {
+export function xlmAddr(priv32: Uint8Array): string {
   const pubKey = ed25519.getPublicKey(priv32.slice(0, 32));
   const payload = concat(new Uint8Array([6 << 3]), pubKey); // version byte for public key = 'G'
   const crc = _crc16xmodem(payload);
@@ -100,8 +99,17 @@ export function xlmAddr(priv32) {
    Returns clean, display-ready addresses.
    Token addresses share their base chain.
    ══════════════════════════════════════════ */
-export function deriveAllAddresses(keys) {
-  const addrs = { bch: keys.bchAddr };
+interface AuthKeys {
+  bchAddr?: string;
+  acctPriv?: Uint8Array | null;
+  acctChain?: Uint8Array | null;
+  xmrPrimaryAddress?: string;
+  xmr?: { addr: string } | null;
+}
+type AddressMap = Record<string, string>;
+
+export function deriveAllAddresses(keys: AuthKeys): AddressMap {
+  const addrs: AddressMap = { bch: keys.bchAddr || '' };
   if (!keys.acctPriv || !keys.acctChain) return addrs;
 
   try {
@@ -161,8 +169,8 @@ export function deriveAllAddresses(keys) {
     // Stealth BCH: same as BCH (scanning is separate)
     addrs.sbch = addrs.bch;
 
-  } catch (e) {
-    console.warn('[addr-derive] error:', e.message);
+  } catch (e: unknown) {
+    console.warn('[addr-derive] error:', (e as Error).message);
   }
 
   return addrs;
@@ -173,44 +181,44 @@ export function deriveAllAddresses(keys) {
    Returns hex string (no 0x prefix).
    ONLY call when needed (signing), never store in state.
    ══════════════════════════════════════════ */
-export function deriveEvmPrivKey(keys) {
+export function deriveEvmPrivKey(keys: AuthKeys): string | null {
   if (!keys?.acctPriv || !keys?.acctChain) return null;
   try {
-    const priv = _childPriv(keys.acctPriv, keys.acctChain, 4); // ETH = /4/0
+    const priv = _childPriv(keys.acctPriv!, keys.acctChain!, 4); // ETH = /4/0
     return b2h(priv);
-  } catch (e) {
-    console.warn('[addr-derive] EVM key derivation error:', e.message);
+  } catch (e: unknown) {
+    console.warn('[addr-derive] EVM key derivation error:', (e as Error).message);
     return null;
   }
 }
 
-export function deriveTrxPrivKey(keys) {
+export function deriveTrxPrivKey(keys: AuthKeys): string | null {
   if (!keys?.acctPriv || !keys?.acctChain) return null;
   try {
-    const priv = _childPriv(keys.acctPriv, keys.acctChain, 9); // TRX = /9/0
+    const priv = _childPriv(keys.acctPriv!, keys.acctChain!, 9); // TRX = /9/0
     return b2h(priv);
   } catch { return null; }
 }
 
-export function deriveXrpPrivKey(keys) {
+export function deriveXrpPrivKey(keys: AuthKeys): Uint8Array | null {
   if (!keys?.acctPriv || !keys?.acctChain) return null;
   try {
-    const priv = _childPriv(keys.acctPriv, keys.acctChain, 7); // XRP = /7/0
+    const priv = _childPriv(keys.acctPriv!, keys.acctChain!, 7); // XRP = /7/0
     return priv; // raw 32 bytes
   } catch { return null; }
 }
 
-export function deriveSolPrivKey(keys) {
+export function deriveSolPrivKey(keys: AuthKeys): Uint8Array | null {
   if (!keys?.acctPriv || !keys?.acctChain) return null;
   try {
-    return _childPriv(keys.acctPriv, keys.acctChain, 8); // SOL = /8/0, returns raw 32 bytes (ed25519 seed)
+    return _childPriv(keys.acctPriv!, keys.acctChain!, 8); // SOL = /8/0, returns raw 32 bytes (ed25519 seed)
   } catch { return null; }
 }
 
-export function deriveXlmPrivKey(keys) {
+export function deriveXlmPrivKey(keys: AuthKeys): Uint8Array | null {
   if (!keys?.acctPriv || !keys?.acctChain) return null;
   try {
-    return _childPriv(keys.acctPriv, keys.acctChain, 10); // XLM = /10/0, returns raw 32 bytes
+    return _childPriv(keys.acctPriv!, keys.acctChain!, 10); // XLM = /10/0, returns raw 32 bytes
   } catch { return null; }
 }
 
@@ -220,7 +228,7 @@ import { sha512 } from '../lib/noble-hashes.js';
 
 const N_SECP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
 
-function _bip32Child(priv, chain, idx, hard) {
+function _bip32Child(priv: Uint8Array, chain: Uint8Array, idx: number, hard: boolean): { priv: Uint8Array; chain: Uint8Array } {
   const ib = new Uint8Array([idx >>> 24, (idx >>> 16) & 0xff, (idx >>> 8) & 0xff, idx & 0xff]);
   const data = hard ? concat(new Uint8Array([0]), priv, ib) : concat(secp256k1.getPublicKey(priv, true), ib);
   const I = hmac(sha512, chain, data);
@@ -228,13 +236,13 @@ function _bip32Child(priv, chain, idx, hard) {
   return { priv: h2b(child), chain: I.slice(32) };
 }
 
-function _childPub(acctPriv, acctChain, branchIdx) {
+function _childPub(acctPriv: Uint8Array, acctChain: Uint8Array, branchIdx: number): Uint8Array {
   const branch = _bip32Child(acctPriv, acctChain, branchIdx, false);
   const node = _bip32Child(branch.priv, branch.chain, 0, false);
   return secp256k1.getPublicKey(node.priv, true);
 }
 
-function _childPriv(acctPriv, acctChain, branchIdx) {
+function _childPriv(acctPriv: Uint8Array, acctChain: Uint8Array, branchIdx: number): Uint8Array {
   const branch = _bip32Child(acctPriv, acctChain, branchIdx, false);
   const node = _bip32Child(branch.priv, branch.chain, 0, false);
   return node.priv;

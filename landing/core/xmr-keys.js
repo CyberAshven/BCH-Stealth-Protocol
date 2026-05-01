@@ -114,7 +114,7 @@ function xmrAddress(pubSpend, pubView, network = 18) {
 }
 function deriveXmrKeys(acctPriv, acctChain, bip32Child) {
   const xmrChain = bip32Child(acctPriv, acctChain, 5);
-  const xmrNode = bip32Child(xmrChain.priv || xmrChain.pub, xmrChain.chain, 0);
+  const xmrNode = bip32Child(xmrChain.priv ?? xmrChain.pub, xmrChain.chain, 0);
   const spendPriv = scReduce32(xmrNode.priv);
   const spendPub = xmrPubFromPriv(spendPriv);
   const viewPriv = xmrViewKeyFromSpend(spendPriv);
