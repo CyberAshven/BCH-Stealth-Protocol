@@ -21,7 +21,8 @@ const DIRS = [
 ];
 
 // Files that should NOT be compiled
-const SKIP = new Set(['monero.worker.ts', 'sw.ts']);
+// Files that need non-ESM output format (service workers, web workers)
+const IIFE_FILES = new Set(['sw.ts', 'monero.worker.ts']);
 
 let compiled = 0;
 let skipped = 0;
@@ -33,7 +34,6 @@ for (const dir of DIRS) {
 
   for (const file of files) {
     if (!file.endsWith('.ts')) continue;
-    if (SKIP.has(file)) continue;
 
     const tsPath = join(dir, file);
     const jsPath = tsPath.replace(/\.ts$/, '.js');
@@ -53,6 +53,7 @@ for (const dir of DIRS) {
         platform: 'browser',
         target: 'es2020',
         bundle: false,
+        format: IIFE_FILES.has(file) ? 'iife' : 'esm',
         loader: { '.ts': 'ts' },
         logLevel: 'silent',
       });

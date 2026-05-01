@@ -1,1 +1,3 @@
-lib/monero.worker.js
+(() => {
+  importScripts("./lib/monero.worker.js");
+})();
