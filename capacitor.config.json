@@ -1,0 +1,10 @@
+{
+  "appId": "com.zeroprotocol.bchstealthwallet",
+  "appName": "BCH Stealth Wallet",
+  "webDir": "landing",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true
+  }
+}
