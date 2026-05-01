@@ -131,7 +131,7 @@ async function _pbkdf2Key(password: string, salt: Uint8Array): Promise<CryptoKey
   const enc = new TextEncoder();
   const km = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 200000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt as unknown as ArrayBuffer, iterations: 200000 },
     km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
   );
 }
@@ -140,7 +140,7 @@ async function encryptVault(profile: unknown, password: string): Promise<string>
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv   = crypto.getRandomValues(new Uint8Array(12));
   const key  = await _pbkdf2Key(password, salt);
-  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key,
+  const ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, key,
     new TextEncoder().encode(JSON.stringify(profile)));
   return JSON.stringify({ v: 1, salt: b2h(salt), iv: b2h(iv), data: b2h(new Uint8Array(ct)) });
 }
@@ -148,7 +148,7 @@ async function encryptVault(profile: unknown, password: string): Promise<string>
 async function decryptVault(enc_json: string, password: string): Promise<unknown> {
   const { salt, iv, data } = JSON.parse(enc_json);
   const key = await _pbkdf2Key(password, h2b(salt));
-  const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: h2b(iv) }, key, h2b(data));
+  const pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: h2b(iv) as unknown as ArrayBuffer }, key, h2b(data) as unknown as ArrayBuffer);
   return JSON.parse(new TextDecoder().decode(pt));
 }
 
@@ -242,14 +242,14 @@ function deriveKeyRelay(shared: Uint8Array): Uint8Array { return sha256(concat(s
 async function aesWrap(data: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['encrypt']);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce, tagLength: 128 }, ck, data));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce as unknown as ArrayBuffer, tagLength: 128 }, ck, data as unknown as ArrayBuffer));
   return concat(nonce, ct);
 }
 
 async function aesUnwrap(blob: Uint8Array, key: Uint8Array): Promise<Uint8Array> {
   if (blob.length < 12) throw new Error('blob too short');
   const ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM' }, false, ['decrypt']);
-  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12), tagLength: 128 }, ck, blob.slice(12)));
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: blob.slice(0, 12) as unknown as ArrayBuffer, tagLength: 128 }, ck, blob.slice(12) as unknown as ArrayBuffer));
 }
 
 async function splitEncrypt(plaintext: string, recipientPubHex: string): Promise<{ chainBlob: Uint8Array; relayBlob: Uint8Array; ephPub: Uint8Array }> {

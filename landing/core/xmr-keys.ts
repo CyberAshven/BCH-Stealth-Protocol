@@ -34,7 +34,7 @@ function keccakF1600(state) {
       for (let y = 0; y < 25; y += 5) state[y+x] ^= D;
     }
     // ρ + π
-    const B = new Array(25);
+    const B: bigint[] = new Array(25);
     for (let x = 0; x < 5; x++)
       for (let y = 0; y < 5; y++) {
         const r = BigInt(KECCAK_ROT[y][x]);

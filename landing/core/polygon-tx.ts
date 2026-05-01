@@ -41,7 +41,7 @@ function rlpEncode(items: Uint8Array | unknown[]): Uint8Array {
     return concat(new Uint8Array([0xb7 + lenBytes.length]), lenBytes, items);
   }
   if (Array.isArray(items)) {
-    const encoded = concat(...items.map(i => rlpEncode(i)));
+    const encoded = concat(...items.map(i => rlpEncode(i as Uint8Array | unknown[])));
     if (encoded.length <= 55) return concat(new Uint8Array([0xc0 + encoded.length]), encoded);
     const lenBytes = _intToBytes(encoded.length);
     return concat(new Uint8Array([0xf7 + lenBytes.length]), lenBytes, encoded);

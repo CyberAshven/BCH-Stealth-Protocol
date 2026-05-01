@@ -85,27 +85,27 @@ function randomSalt(): number {
 function abiEncodeField(type: string, value: unknown): Uint8Array {
   if (type === 'address') {
     // address → uint160 → left-padded to 32 bytes
-    return h2b(pad32(value.replace('0x', '')));
+    return h2b(pad32((value as string).replace('0x', '')));
   }
   if (type === 'string') {
     // string → keccak256(UTF-8 bytes)
-    return keccak_256(new TextEncoder().encode(value));
+    return keccak_256(new TextEncoder().encode(value as string));
   }
   if (type === 'bytes') {
     // bytes → keccak256(raw bytes)
-    const raw = typeof value === 'string' ? h2b(value.replace('0x', '')) : value;
+    const raw: Uint8Array = typeof value === 'string' ? h2b((value as string).replace('0x', '')) : (value as Uint8Array);
     return keccak_256(raw);
   }
   if (type === 'bool') {
-    return bigToBytes32(value ? 1n : 0n);
+    return bigToBytes32((value as boolean) ? 1n : 0n);
   }
   // uint256, uint8, int256, etc. → BigInt → 32 bytes big-endian
   if (type.startsWith('uint') || type.startsWith('int')) {
-    return bigToBytes32(BigInt(value));
+    return bigToBytes32(BigInt(value as string | number | bigint | boolean));
   }
   if (type.startsWith('bytes') && type.length > 5) {
     // bytesN (fixed) — right-padded to 32 bytes
-    const raw = typeof value === 'string' ? h2b(value.replace('0x', '')) : value;
+    const raw: Uint8Array = typeof value === 'string' ? h2b((value as string).replace('0x', '')) : (value as Uint8Array);
     const out = new Uint8Array(32);
     out.set(raw);
     return out;
