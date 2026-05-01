@@ -1,0 +1,14 @@
+{
+  "name": "@00-protocol/bch-stealth-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BIP352 stealth address SDK for Bitcoin Cash",
+  "main": "src/stealth/index.js",
+  "scripts": {
+    "test": "node test/stealth.test.js"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.8.1",
+    "@noble/hashes": "^1.7.1"
+  }
+}
