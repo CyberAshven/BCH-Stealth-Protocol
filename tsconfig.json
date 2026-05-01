@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM"],
+    "strict": false,
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "resolveJsonModule": true,
+    "paths": {
+      "https://esm.sh/@noble/curves@1.8.1/secp256k1": ["./node_modules/@noble/curves/secp256k1.d.ts"],
+      "https://esm.sh/@noble/hashes@1.7.1/sha256": ["./node_modules/@noble/hashes/sha256.d.ts"],
+      "https://esm.sh/@noble/hashes@1.7.1/sha512": ["./node_modules/@noble/hashes/sha512.d.ts"],
+      "https://esm.sh/@noble/hashes@1.7.1/hmac": ["./node_modules/@noble/hashes/hmac.d.ts"],
+      "https://esm.sh/@noble/hashes@1.7.1/ripemd160": ["./node_modules/@noble/hashes/ripemd160.d.ts"]
+    }
+  },
+  "include": [
+    "landing/**/*.ts",
+    "desktop/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "landing/lib"
+  ]
+}
