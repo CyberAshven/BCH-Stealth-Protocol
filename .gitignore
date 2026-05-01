@@ -53,7 +53,6 @@ backup/
 
 # Node
 node_modules/
-package-lock.json
 
 # Desktop & Android build outputs
 dist/
