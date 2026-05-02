@@ -41,11 +41,11 @@ const APPS = [
 
 // â”€â”€ Desktop UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const APP_ICONS = {
-  'index.html': 'âŒ‚', 'wallet.html': '<img src="icons/bch-wallet.png" style="width:18px;height:18px">', 'chat.html': '<img src="icons/chat.png" style="width:18px;height:18px">', 'pay.html': '<img src="icons/pay.png" style="width:18px;height:18px">',
-  'swap.html': 'â‡„', 'dex.html': '<img src="icons/dex.png" style="width:18px;height:18px">', 'loan.html': '<img src="icons/loan.png" style="width:18px;height:18px">',
-  'id.html': 'â—‰', 'mesh.html': 'â¬¡',
-  'onion.html': '<img src="icons/onion.png" style="width:18px;height:18px">', 'vault.html': '<img src="icons/vault.png" style="width:18px;height:18px">', 'fusion.html': 'âš—', 'sub.html': '<img src="icons/sub.png" style="width:18px;height:18px">', 'analyse.html': 'â—ª', 'config.html': 'âš™',
-  'bet.html': 'ðŸŽ²', 'elon.html': '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">',
+  'index.html': '⌂', 'wallet.html': '<img src="icons/bch-wallet.png" style="width:18px;height:18px">', 'chat.html': '<img src="icons/chat.png" style="width:18px;height:18px">', 'pay.html': '<img src="icons/pay.png" style="width:18px;height:18px">',
+  'swap.html': '⇄', 'dex.html': '<img src="icons/dex.png" style="width:18px;height:18px">', 'loan.html': '<img src="icons/loan.png" style="width:18px;height:18px">',
+  'id.html': '◉', 'mesh.html': '⬡',
+  'onion.html': '<img src="icons/onion.png" style="width:18px;height:18px">', 'vault.html': '<img src="icons/vault.png" style="width:18px;height:18px">', 'fusion.html': '⚗', 'sub.html': '<img src="icons/sub.png" style="width:18px;height:18px">', 'analyse.html': '◊', 'config.html': '⚙',
+  'bet.html': '\u{1F3B2}', 'elon.html': '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">',
 };
 const APP_SECTIONS = {
   Overview: ['index.html'],
@@ -64,15 +64,15 @@ function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('00_theme', theme);
   const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-  if (meta) meta.content = theme === 'dark' ? '#0c0d12' : '#f5f6f8';
+  if (meta) meta.content = theme === 'dark' ? '☀' : '☾';
   const icon = document.getElementById('dt-theme-icon');
   const label = document.getElementById('dt-theme-label');
-  if (icon) icon.textContent = theme === 'dark' ? 'â˜€' : 'â˜¾';
-  if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+  if (icon) icon.textContent = theme === 'dark' ? '☀' : '☾';
+  if (label) label.textContent = theme === 'dark' ? '☀' : '☾';
   // Override hacker green with BCH green on desktop
   if (IS_DESKTOP) {
     const r = document.documentElement.style;
-    const accent = theme === 'dark' ? '#1DD9A5' : '#0AC18E';
+    const accent = theme === 'dark' ? '☀' : '☾';
     r.setProperty('--green', accent, 'important');
     r.setProperty('--green-dim', accent, 'important');
     r.setProperty('--green-dark', 'rgba(10,193,142,.15)', 'important');
@@ -899,7 +899,7 @@ function buildDesktopSidebar() {
       const isActive = IS_SPA ? (resolved === '#/' + cur.replace('.html', '')) : (url === cur);
       a.className = 'sidebar-nav-item' + (isActive ? ' active' : '');
       a.href = resolved;
-      a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || 'â—'}</span><span class="sidebar-label">${app.name.replace('00 ', '')}</span>`;
+      a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || '●'}</span><span class="sidebar-label">${app.name.replace('00 ', '')}</span>`;
       nav.appendChild(a);
     }
   }
@@ -912,15 +912,19 @@ function buildDesktopSidebar() {
   // Docs link
   const docBtn = document.createElement('a');
   docBtn.className = 'sidebar-bottom-item';
-  docBtn.href = 'docs.html';
-  docBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ“–</span><span class="sidebar-label">Docs</span>';
+  docBtn.href = 'https://github.com/00-Protocol/BCH-Stealth-Protocol';
+  docBtn.target = '_blank';
+  docBtn.rel = 'noopener';
+  const _docIcon = document.createElement('span'); _docIcon.className = 'sidebar-bottom-icon'; _docIcon.textContent = '\u{1F4D6}';
+  const _docLabel = document.createElement('span'); _docLabel.className = 'sidebar-label'; _docLabel.textContent = 'Docs';
+  docBtn.appendChild(_docIcon); docBtn.appendChild(_docLabel);
   bot.appendChild(docBtn);
 
   // Theme toggle
   const theme = getTheme();
   const themeBtn = document.createElement('button');
   themeBtn.className = 'sidebar-bottom-item';
-  themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === 'dark' ? 'â˜€' : 'â˜¾'}</span><span class="sidebar-label" id="dt-theme-label">${theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>`;
+  themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === 'dark' ? '☀' : '☾'}</span><span class="sidebar-label" id="dt-theme-label">${theme === 'dark' ? '☀' : '☾'}</span>`;
   themeBtn.onclick = () => setTheme(getTheme() === 'light' ? 'dark' : 'light');
   bot.appendChild(themeBtn);
 
@@ -991,7 +995,7 @@ function buildDesktopSidebar() {
 function inject() {
   const path      = window.location.pathname.split('/').pop() || 'index.html';
   const isLanding = path === '' || path === 'index.html';
-  const isDocs    = path === 'docs.html';
+  const isDocs    = false; // docs.html removed — link opens GitHub externally
 
   // Remove blinking cursor to avoid visual conflict with shell controls
   document.querySelectorAll('.blink').forEach(el => el.remove());

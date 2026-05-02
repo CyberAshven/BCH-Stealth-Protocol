@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Auth View (SPA v2)
    ══════════════════════════════════════════
@@ -57,8 +57,6 @@ const IMPORT_TEMPLATE = `
       </div>
       <div style="display:flex;gap:10px">
         <button id="auth-ledger-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">Ledger</button>
-        <button id="auth-wc-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">WalletConnect</button>
-        <button id="auth-wiz-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">WizardConnect</button>
         <button id="auth-trezor-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">Trezor</button>
       </div>
       <div id="auth-hw-error" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:16px"></div>
@@ -458,7 +456,17 @@ async function doWizardConnect() {
 
     const _close = () => { signModal.style.display = 'none'; clearInterval(cdTimer); };
     const _reject = () => { if (wizWalletMgr) wizWalletMgr.rejectSign(req.sequence, 'User rejected'); _close(); };
-    const _approve = () => { if (wizWalletMgr) wizWalletMgr.approveSign(req.sequence, ''); _close(); };
+    const _approve = () => {
+      if (!wizWalletMgr) { _close(); return; }
+      const signedTx = req.signedTx || req.signedTransaction || req.tx || (typeof req.transaction === 'string' ? req.transaction : '');
+      if (!signedTx) {
+        wizWalletMgr.rejectSign(req.sequence, 'No signed transaction payload provided');
+        _close();
+        return;
+      }
+      wizWalletMgr.approveSign(req.sequence, signedTx);
+      _close();
+    };
 
     document.getElementById('wiz-sign-reject').onclick = _reject;
     document.getElementById('wiz-sign-approve').onclick = _approve;
@@ -556,9 +564,7 @@ function bindImportEvents() {
   document.getElementById('auth-gen-btn')?.addEventListener('click', doGenerate);
   document.getElementById('auth-pass2')?.addEventListener('keydown', e => { if (e.key === 'Enter') doImport(); });
   document.getElementById('auth-ledger-btn')?.addEventListener('click', doLedger);
-  document.getElementById('auth-wc-btn')?.addEventListener('click', doWalletConnect);
-  document.getElementById('auth-wiz-btn')?.addEventListener('click', doWizardConnect);
-  document.getElementById('auth-trezor-btn')?.addEventListener('click', doTrezor);
+document.getElementById('auth-trezor-btn')?.addEventListener('click', doTrezor);
   _bindRestoreBtn();
 }
 

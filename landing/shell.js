@@ -43,22 +43,22 @@
     { name: "00 Elon", url: "elon.html" }
   ];
   const APP_ICONS = {
-    "index.html": "\xE2\u0152\u201A",
+    "index.html": "\u2302",
     "wallet.html": '<img src="icons/bch-wallet.png" style="width:18px;height:18px">',
     "chat.html": '<img src="icons/chat.png" style="width:18px;height:18px">',
     "pay.html": '<img src="icons/pay.png" style="width:18px;height:18px">',
-    "swap.html": "\xE2\u2021\u201E",
+    "swap.html": "\u21C4",
     "dex.html": '<img src="icons/dex.png" style="width:18px;height:18px">',
     "loan.html": '<img src="icons/loan.png" style="width:18px;height:18px">',
-    "id.html": "\xE2\u2014\u2030",
-    "mesh.html": "\xE2\xAC\xA1",
+    "id.html": "\u25C9",
+    "mesh.html": "\u2B21",
     "onion.html": '<img src="icons/onion.png" style="width:18px;height:18px">',
     "vault.html": '<img src="icons/vault.png" style="width:18px;height:18px">',
-    "fusion.html": "\xE2\u0161\u2014",
+    "fusion.html": "\u2697",
     "sub.html": '<img src="icons/sub.png" style="width:18px;height:18px">',
-    "analyse.html": "\xE2\u2014\xAA",
-    "config.html": "\xE2\u0161\u2122",
-    "bet.html": "\xF0\u0178\u017D\xB2",
+    "analyse.html": "\u25CA",
+    "config.html": "\u2699",
+    "bet.html": "\u{1F3B2}",
     "elon.html": '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">'
   };
   const APP_SECTIONS = {
@@ -78,14 +78,14 @@
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("00_theme", theme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = theme === "dark" ? "#0c0d12" : "#f5f6f8";
+    if (meta) meta.content = theme === "dark" ? "\u2600" : "\u263E";
     const icon = document.getElementById("dt-theme-icon");
     const label = document.getElementById("dt-theme-label");
-    if (icon) icon.textContent = theme === "dark" ? "\xE2\u02DC\u20AC" : "\xE2\u02DC\xBE";
-    if (label) label.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+    if (icon) icon.textContent = theme === "dark" ? "\u2600" : "\u263E";
+    if (label) label.textContent = theme === "dark" ? "\u2600" : "\u263E";
     if (IS_DESKTOP) {
       const r = document.documentElement.style;
-      const accent = theme === "dark" ? "#1DD9A5" : "#0AC18E";
+      const accent = theme === "dark" ? "\u2600" : "\u263E";
       r.setProperty("--green", accent, "important");
       r.setProperty("--green-dim", accent, "important");
       r.setProperty("--green-dark", "rgba(10,193,142,.15)", "important");
@@ -909,7 +909,7 @@
         const isActive = IS_SPA ? resolved === "#/" + cur.replace(".html", "") : url === cur;
         a.className = "sidebar-nav-item" + (isActive ? " active" : "");
         a.href = resolved;
-        a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || "\xE2\u2014\x8F"}</span><span class="sidebar-label">${app.name.replace("00 ", "")}</span>`;
+        a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || "\u25CF"}</span><span class="sidebar-label">${app.name.replace("00 ", "")}</span>`;
         nav.appendChild(a);
       }
     }
@@ -918,13 +918,22 @@
     bot.className = "sidebar-bottom";
     const docBtn = document.createElement("a");
     docBtn.className = "sidebar-bottom-item";
-    docBtn.href = "docs.html";
-    docBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u201C\u2013</span><span class="sidebar-label">Docs</span>';
+    docBtn.href = "https://github.com/00-Protocol/BCH-Stealth-Protocol";
+    docBtn.target = "_blank";
+    docBtn.rel = "noopener";
+    const _docIcon = document.createElement("span");
+    _docIcon.className = "sidebar-bottom-icon";
+    _docIcon.textContent = "\u{1F4D6}";
+    const _docLabel = document.createElement("span");
+    _docLabel.className = "sidebar-label";
+    _docLabel.textContent = "Docs";
+    docBtn.appendChild(_docIcon);
+    docBtn.appendChild(_docLabel);
     bot.appendChild(docBtn);
     const theme = getTheme();
     const themeBtn = document.createElement("button");
     themeBtn.className = "sidebar-bottom-item";
-    themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === "dark" ? "\xE2\u02DC\u20AC" : "\xE2\u02DC\xBE"}</span><span class="sidebar-label" id="dt-theme-label">${theme === "dark" ? "Light mode" : "Dark mode"}</span>`;
+    themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === "dark" ? "\u2600" : "\u263E"}</span><span class="sidebar-label" id="dt-theme-label">${theme === "dark" ? "\u2600" : "\u263E"}</span>`;
     themeBtn.onclick = () => setTheme(getTheme() === "light" ? "dark" : "light");
     bot.appendChild(themeBtn);
     const netBtn = document.createElement("button");
@@ -979,7 +988,7 @@
   function inject() {
     const path = window.location.pathname.split("/").pop() || "index.html";
     const isLanding = path === "" || path === "index.html";
-    const isDocs = path === "docs.html";
+    const isDocs = false;
     document.querySelectorAll(".blink").forEach((el) => el.remove());
     if (IS_DESKTOP && !isDocs) {
       document.body.prepend(buildDesktopSidebar());
