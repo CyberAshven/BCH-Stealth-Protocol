@@ -36,6 +36,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Prevent ping-pong sync loops: only push releases outward from 00-Wallet.
+          if [[ "$SOURCE_REPO" == */BCH-Stealth-Protocol ]]; then
+            echo "Source is BCH-Stealth-Protocol; skipping counterpart release sync to avoid loop."
+            exit 0
+          fi
+
           if [ -z "${SYNC_TOKEN}" ] || [ -z "${TARGET_REPO}" ]; then
             echo "SYNC_TOKEN or SYNC_TARGET_REPO is missing. Skipping release sync."
             exit 0
