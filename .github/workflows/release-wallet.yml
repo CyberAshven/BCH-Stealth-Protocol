@@ -119,7 +119,6 @@ jobs:
         with:
           tag_name: BCH-Stealth-Wallet-latest
           name: BCH Stealth Wallet (latest)
-          prerelease: true
           files: release-assets/**/*
           overwrite_files: true
           fail_on_unmatched_files: true

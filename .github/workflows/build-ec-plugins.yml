@@ -36,7 +36,6 @@ jobs:
         with:
           tag_name: electron-cash-plugins-latest
           name: Electron Cash Plugins (latest)
-          prerelease: true
           body: |
             Electron Cash plugin bundles built from source.
 
