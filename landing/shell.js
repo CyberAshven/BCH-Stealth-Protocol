@@ -96,9 +96,9 @@
   const LANGS = ["EN", "FR", "ES", "CN"];
   const T = {
     EN: { disc: "DISCONNECT", apps: "APPS", confirm: "Clear all data and disconnect?", connect: "CONNECT" },
-    FR: { disc: "D\xC3\u2030CONNECTER", apps: "APPS", confirm: "Effacer les donn\xC3\xA9es et d\xC3\xA9connecter ?", connect: "CONNECTER" },
-    ES: { disc: "DESCONECTAR", apps: "APPS", confirm: "\xC2\xBFBorrar datos y desconectar?", connect: "CONECTAR" },
-    CN: { disc: "\xE6\u2013\xAD\xE5\xBC\u20AC\xE8\xBF\u017E\xE6\u017D\xA5", apps: "\xE5\xBA\u201D\xE7\u201D\xA8", confirm: "\xE6\xB8\u2026\xE9\u2122\xA4\xE6\u2022\xB0\xE6\x8D\xAE\xE5\xB9\xB6\xE6\u2013\xAD\xE5\xBC\u20AC\xE8\xBF\u017E\xE6\u017D\xA5\xEF\xBC\u0178", connect: "\xE8\xBF\u017E\xE6\u017D\xA5" }
+    FR: { disc: "DECONNECTER", apps: "APPS", confirm: "Effacer les donnees et deconnecter ?", connect: "CONNECTER" },
+    ES: { disc: "DESCONECTAR", apps: "APPS", confirm: "Borrar datos y desconectar?", connect: "CONECTAR" },
+    CN: { disc: "\u65AD\u5F00\u8FDE\u63A5", apps: "\u5E94\u7528", confirm: "\u6E05\u9664\u6570\u636E\u5E76\u65AD\u5F00\u8FDE\u63A5\uFF1F", connect: "\u8FDE\u63A5" }
   };
   function isConnected() {
     return !!(localStorage.getItem("00_wif") || localStorage.getItem("00_pub") || localStorage.getItem("00_ledger") || localStorage.getItem("00wallet_vault") || localStorage.getItem("00_wc_session") || localStorage.getItem("00_session_auth"));
@@ -208,12 +208,12 @@
       };
       ov.innerHTML = `
       <div class="disc-modal">
-        <div class="disc-icon">\xE2\u0161\xA0</div>
+        <div class="disc-icon">\u26A0</div>
         <div class="disc-title">${t("disc")}</div>
         <div class="disc-msg">${t("confirm")}</div>
         <div class="disc-actions">
-          <button class="disc-cancel" id="disc-cancel">${_lang === "FR" ? "Annuler" : _lang === "ES" ? "Cancelar" : _lang === "CN" ? "\xE5\x8F\u2013\xE6\xB6\u02C6" : "Cancel"}</button>
-          <button class="disc-confirm" id="disc-ok">${_lang === "FR" ? "Confirmer" : _lang === "ES" ? "Confirmar" : _lang === "CN" ? "\xE7\xA1\xAE\xE8\xAE\xA4" : "Confirm"}</button>
+          <button class="disc-cancel" id="disc-cancel">${_lang === "FR" ? "Annuler" : _lang === "ES" ? "Cancelar" : _lang === "CN" ? "\u53D6\u6D88" : "Cancel"}</button>
+          <button class="disc-confirm" id="disc-ok">${_lang === "FR" ? "Confirmer" : _lang === "ES" ? "Confirmar" : _lang === "CN" ? "\u786E\u8BA4" : "Confirm"}</button>
         </div>
       </div>`;
       document.body.appendChild(ov);
@@ -237,7 +237,12 @@
           if (window.wcDisconnect) await window.wcDisconnect();
         } catch (e) {
         }
-        window.location.replace("/");
+        if (IS_SPA) {
+          window.location.hash = "#/auth";
+          window.location.reload();
+        } else {
+          window.location.replace(resolveUrl("index.html"));
+        }
       };
     }
     ov.classList.add("open");

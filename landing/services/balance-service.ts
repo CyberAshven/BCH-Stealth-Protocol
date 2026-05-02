@@ -354,7 +354,7 @@ export function start(keys) {
   // Stealth scanning (only if we have scan keys)
   if (keys.stealthScanPriv) {
     _stealthTimer = setInterval(_scanStealth, STEALTH_INTERVAL);
-    setTimeout(_scanStealth, 5000); // first scan after 5s
+    _scanStealth(); // first scan immediately after start
     _updateStealthBalance(); // load existing stealth UTXOs immediately
   }
 }

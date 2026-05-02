@@ -87,9 +87,9 @@ const LANGS = ['EN', 'FR', 'ES', 'CN'];
 
 const T = {
   EN: { disc: 'DISCONNECT', apps: 'APPS', confirm: 'Clear all data and disconnect?', connect: 'CONNECT' },
-  FR: { disc: 'DÃ‰CONNECTER', apps: 'APPS', confirm: 'Effacer les donnÃ©es et dÃ©connecter ?', connect: 'CONNECTER' },
-  ES: { disc: 'DESCONECTAR', apps: 'APPS', confirm: 'Â¿Borrar datos y desconectar?', connect: 'CONECTAR' },
-  CN: { disc: 'æ–­å¼€è¿žæŽ¥',    apps: 'åº”ç”¨', confirm: 'æ¸…é™¤æ•°æ®å¹¶æ–­å¼€è¿žæŽ¥ï¼Ÿ', connect: 'è¿žæŽ¥' },
+  FR: { disc: 'DECONNECTER', apps: 'APPS', confirm: 'Effacer les donnees et deconnecter ?', connect: 'CONNECTER' },
+  ES: { disc: 'DESCONECTAR', apps: 'APPS', confirm: 'Borrar datos y desconectar?', connect: 'CONECTAR' },
+  CN: { disc: '\u65AD\u5F00\u8FDE\u63A5', apps: '\u5E94\u7528', confirm: '\u6E05\u9664\u6570\u636E\u5E76\u65AD\u5F00\u8FDE\u63A5\uFF1F', connect: '\u8FDE\u63A5' },
 };
 
 function isConnected() {
@@ -168,12 +168,12 @@ function disconnect() {
     ov.onclick = e => { if (e.target === ov) ov.classList.remove('open'); };
     ov.innerHTML = `
       <div class="disc-modal">
-        <div class="disc-icon">âš </div>
+        <div class="disc-icon">\u26A0</div>
         <div class="disc-title">${t('disc')}</div>
         <div class="disc-msg">${t('confirm')}</div>
         <div class="disc-actions">
-          <button class="disc-cancel" id="disc-cancel">${_lang === 'FR' ? 'Annuler' : _lang === 'ES' ? 'Cancelar' : _lang === 'CN' ? 'å–æ¶ˆ' : 'Cancel'}</button>
-          <button class="disc-confirm" id="disc-ok">${_lang === 'FR' ? 'Confirmer' : _lang === 'ES' ? 'Confirmar' : _lang === 'CN' ? 'ç¡®è®¤' : 'Confirm'}</button>
+          <button class="disc-cancel" id="disc-cancel">${_lang === 'FR' ? 'Annuler' : _lang === 'ES' ? 'Cancelar' : _lang === 'CN' ? '\u53D6\u6D88' : 'Cancel'}</button>
+          <button class="disc-confirm" id="disc-ok">${_lang === 'FR' ? 'Confirmer' : _lang === 'ES' ? 'Confirmar' : _lang === 'CN' ? '\u786E\u8BA4' : 'Confirm'}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -191,7 +191,12 @@ function disconnect() {
       }
       try { if (window._ledgerDevice) await window._ledgerDevice.close(); } catch (e) {}
       try { if (window.wcDisconnect) await window.wcDisconnect(); } catch (e) {}
-      window.location.replace('/');
+      if (IS_SPA) {
+        window.location.hash = '#/auth';
+        window.location.reload();
+      } else {
+        window.location.replace(resolveUrl('index.html'));
+      }
     };
   }
   ov.classList.add('open');

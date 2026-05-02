@@ -196,7 +196,7 @@ async function doWalletConnect() {
   if (errEl) errEl.textContent = '';
   if (btn) { btn.disabled = true; btn.textContent = '⛓ Loading SDK...'; }
 
-  // Create modal with QR and URI paste tabs
+  // Create modal with QR + URI copy only (pre-wallet entry flow)
   let modal = document.getElementById('wc-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -208,13 +208,9 @@ async function doWalletConnect() {
         <h3 style="margin:0;font-size:18px;font-weight:700">⛓ WalletConnect</h3>
         <button id="wc-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">✕</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button id="wc-tab-scan" style="flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Scan QR</button>
-        <button id="wc-tab-paste" style="flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer">Paste URI</button>
-      </div>
-      <!-- QR Scan Panel -->
+      <!-- QR + URI Panel -->
       <div id="wc-scan-panel">
-        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Open your wallet app and scan this QR code</p>
+        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Open your wallet app and scan this QR code, or copy URI.</p>
         <div style="text-align:center"><canvas id="wc-qr-canvas" style="max-width:240px"></canvas></div>
         <div id="wc-qr-uri" style="font-size:10px;color:#64748b;word-break:break-all;margin:12px 0;background:#f5f6f8;padding:8px;border-radius:8px;max-height:60px;overflow:auto"></div>
         <div style="display:flex;gap:8px">
@@ -222,13 +218,6 @@ async function doWalletConnect() {
           <button id="wc-scan-cancel" style="flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer;font-size:12px;font-family:Inter,sans-serif">Cancel</button>
         </div>
         <div id="wc-scan-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
-      </div>
-      <!-- URI Paste Panel -->
-      <div id="wc-paste-panel" style="display:none">
-        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Paste a WalletConnect URI from an external wallet</p>
-        <input id="wc-paste-uri" placeholder="wc://..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:monospace;margin-bottom:12px;box-sizing:border-box">
-        <button id="wc-paste-connect" style="width:100%;padding:10px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-weight:600;cursor:pointer;font-size:13px">Connect →</button>
-        <div id="wc-paste-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
       </div>
     </div>`;
     document.body.appendChild(modal);
@@ -246,20 +235,6 @@ async function doWalletConnect() {
     if (btn) { btn.disabled = false; btn.textContent = resetText; }
   };
 
-  // Tab switching
-  document.getElementById('wc-tab-scan').onclick = () => {
-    document.getElementById('wc-scan-panel').style.display = 'block';
-    document.getElementById('wc-paste-panel').style.display = 'none';
-    document.getElementById('wc-tab-scan').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-    document.getElementById('wc-tab-paste').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer';
-  };
-  document.getElementById('wc-tab-paste').onclick = () => {
-    document.getElementById('wc-scan-panel').style.display = 'none';
-    document.getElementById('wc-paste-panel').style.display = 'block';
-    document.getElementById('wc-tab-paste').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-    document.getElementById('wc-tab-scan').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer';
-  };
-
   // Copy URI button
   document.getElementById('wc-copy-btn')?.addEventListener('click', async () => {
     const uri = (document.getElementById('wc-qr-uri')?.textContent || '').trim();
@@ -271,20 +246,6 @@ async function doWalletConnect() {
       cbtn.textContent = 'Copied ✓';
       setTimeout(() => { cbtn.textContent = prev || 'Copy URI'; }, 1200);
     } catch {}
-  });
-
-  // Paste URI connect handler
-  document.getElementById('wc-paste-connect')?.addEventListener('click', async () => {
-    const uri = document.getElementById('wc-paste-uri').value.trim();
-    const statusEl = document.getElementById('wc-paste-status');
-    if (!uri) { statusEl.textContent = 'Paste a WalletConnect URI'; return; }
-    try {
-      const { connectWalletConnectWithUri } = await import('../core/auth.js');
-      await connectWalletConnectWithUri(uri, (msg) => { if (errEl) errEl.textContent = msg; });
-      modal.style.display = 'none';
-      try { const bs = await import('../services/balance-service.js'); bs.start(); } catch {}
-      navigate('dashboard');
-    } catch (e) { statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#ef4444'; }
   });
 
   try {
@@ -307,7 +268,7 @@ async function doWalletConnect() {
     modal.style.display = 'none';
 
     // Start balance service
-    try { const bs = await import('../services/balance-service.js'); bs.start(); } catch {}
+    try { const bs = await import('../services/balance-service.js'); bs.start(auth.getKeys()); } catch {}
 
     navigate('dashboard');
   } catch (e) {
@@ -320,8 +281,6 @@ async function doWalletConnect() {
 async function doWizardConnect() {
   const WC = window.WizardConnect;
   if (!WC) { alert('WizardConnect module not loaded'); return; }
-  const keysNow = auth.getKeys() as any;
-  const hasLocalControl = !!keysNow?.privKey;
 
   // Create modal
   let modal = document.getElementById('wiz-modal');
@@ -335,11 +294,7 @@ async function doWizardConnect() {
         <h3 style="margin:0;font-size:18px;font-weight:700">🔮 WizardConnect</h3>
         <button id="wiz-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">✕</button>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:16px">
-        <button id="wiz-tab-wallet" style="flex:1;padding:8px;border-radius:8px;border:none;background:#0AC18E;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Wallet Mode</button>
-        <button id="wiz-tab-dapp" style="flex:1;padding:8px;border-radius:8px;border:1px solid #7c3aed;background:rgba(124,58,237,.1);color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer">Dapp Mode</button>
-      </div>
-      <!-- Wallet Panel: Show QR for dapp to scan -->
+      <!-- Wallet panel: Show QR for dapp to scan -->
       <div id="wiz-wallet-panel">
         <p style="font-size:12px;color:#64748b;margin:0 0 12px">Show this QR to a dapp to connect your wallet</p>
         <div style="text-align:center"><canvas id="wiz-qr-canvas" style="max-width:240px"></canvas></div>
@@ -350,42 +305,16 @@ async function doWizardConnect() {
         </div>
         <div id="wiz-wallet-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
       </div>
-      <!-- Dapp Panel: Paste URI to connect to external wallet -->
-      <div id="wiz-dapp-panel" style="display:none">
-        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Paste the wiz:// URI from an external wallet</p>
-        <input id="wiz-dapp-uri" placeholder="wiz://?p=...&s=..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:monospace;margin-bottom:12px;box-sizing:border-box">
-        <button id="wiz-dapp-connect" style="width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:600;cursor:pointer;font-size:13px">Connect →</button>
-        <div id="wiz-dapp-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
-      </div>
     </div>`;
     document.body.appendChild(modal);
-    // Auth page context: default to Dapp Mode (connect FROM external wallet)
-    document.getElementById('wiz-tab-dapp')?.click();
   } else {
     modal.style.display = 'flex';
-    document.getElementById('wiz-tab-dapp')?.click();
   }
 
   let wizWalletMgr = null;
-  let wizDappMgr = null;
 
   // Close
   document.getElementById('wiz-close').onclick = () => { modal.style.display = 'none'; };
-
-  // Tab switching
-  document.getElementById('wiz-tab-wallet').onclick = () => {
-    document.getElementById('wiz-wallet-panel').style.display = 'block';
-    document.getElementById('wiz-dapp-panel').style.display = 'none';
-    document.getElementById('wiz-tab-wallet').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:#0AC18E;color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-    document.getElementById('wiz-tab-dapp').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #7c3aed;background:rgba(124,58,237,.1);color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer';
-    _generateWalletQR();
-  };
-  document.getElementById('wiz-tab-dapp').onclick = () => {
-    document.getElementById('wiz-wallet-panel').style.display = 'none';
-    document.getElementById('wiz-dapp-panel').style.display = 'block';
-    document.getElementById('wiz-tab-dapp').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-    document.getElementById('wiz-tab-wallet').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:1px solid #0AC18E;background:rgba(10,193,142,.1);color:#0AC18E;font-size:12px;font-weight:600;cursor:pointer';
-  };
 
   // Wallet mode: Generate QR
   async function _generateWalletQR() {
@@ -396,7 +325,7 @@ async function doWizardConnect() {
       if (_wk?.stealthSpendXpub && _wk?.stealthScanXpub) {
         wizWalletMgr.setStealthXpubs(_wk.stealthSpendXpub, _wk.stealthScanXpub);
       }
-      const conn = wizWalletMgr.generateConnection();
+      const conn = await wizWalletMgr.generateConnection();
       document.getElementById('wiz-uri-display').textContent = conn.uri;
 
       const QRCode = (await import('../lib/qrcode.js')).default;
@@ -425,26 +354,6 @@ async function doWizardConnect() {
     });
   };
   document.getElementById('wiz-refresh-qr').onclick = () => _generateWalletQR();
-
-  // Dapp mode: Connect
-  document.getElementById('wiz-dapp-connect').onclick = () => {
-    const uri = document.getElementById('wiz-dapp-uri').value.trim();
-    const statusEl = document.getElementById('wiz-dapp-status');
-    if (!uri) { statusEl.textContent = 'Paste a wiz:// URI'; return; }
-    try {
-      wizDappMgr = new WC.DappManager('BCH Stealth Wallet', 'https://0penw0rld.com/icons/00.png');
-      wizDappMgr.onConnect((walletName, walletIcon, paths) => {
-        localStorage.setItem('00_wiz_paths', JSON.stringify(paths));
-        localStorage.setItem('00_wiz_connected', '1');
-        modal.style.display = 'none';
-        try { import('../services/balance-service.js').then(bs => bs.start(auth.getKeys())).catch(() => {}); } catch {}
-        navigate('dashboard');
-      });
-      wizDappMgr.onDisconnect((reason) => { statusEl.textContent = 'Disconnected: ' + reason; });
-      wizDappMgr.connect(uri);
-      statusEl.textContent = 'Connecting...';
-    } catch (e) { statusEl.textContent = 'Error: ' + e.message; }
-  };
 
   // Sign approval modal
   function _showSignModal(req) {
@@ -498,18 +407,8 @@ async function doWizardConnect() {
     document.getElementById('wiz-sign-approve').onclick = _approve;
   }
 
-  // If user doesn't have a local seed/hex wallet unlocked, force dapp mode (external wallet connect)
-  if (!hasLocalControl) {
-    document.getElementById('wiz-tab-wallet').style.display = 'none';
-    document.getElementById('wiz-wallet-panel').style.display = 'none';
-    document.getElementById('wiz-dapp-panel').style.display = 'block';
-    document.getElementById('wiz-tab-dapp').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-size:12px;font-weight:600;cursor:pointer';
-    const st = document.getElementById('wiz-dapp-status');
-    if (st) st.textContent = 'Connect to an external Wizard wallet';
-  } else {
-    // Generate QR immediately (wallet mode default)
-    _generateWalletQR();
-  }
+  // Always generate QR immediately on auth so users can copy/share wiz URI before entering wallet.
+  _generateWalletQR();
 }
 
 async function doImportBackup(file) {
@@ -550,7 +449,7 @@ async function doLedger() {
     // Start balance service
     try {
       const bs = await import('../services/balance-service.js');
-      bs.start();
+      bs.start(auth.getKeys());
     } catch {}
 
     navigate('dashboard');
@@ -575,7 +474,7 @@ async function doTrezor() {
 
     try {
       const bs = await import('../services/balance-service.js');
-      bs.start();
+      bs.start(auth.getKeys());
     } catch {}
 
     navigate('dashboard');

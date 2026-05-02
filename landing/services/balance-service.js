@@ -298,7 +298,7 @@ function start(keys) {
   _priceTimer = setInterval(_refreshPrices, PRICE_INTERVAL);
   if (keys.stealthScanPriv) {
     _stealthTimer = setInterval(_scanStealth, STEALTH_INTERVAL);
-    setTimeout(_scanStealth, 5e3);
+    _scanStealth();
     _updateStealthBalance();
   }
 }
