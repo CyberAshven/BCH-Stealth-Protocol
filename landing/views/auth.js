@@ -44,6 +44,7 @@ const IMPORT_TEMPLATE = `
         <button id="auth-ledger-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">Ledger</button>
         <button id="auth-wc-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">WalletConnect</button>
         <button id="auth-wiz-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">WizardConnect</button>
+        <button id="auth-trezor-btn" style="flex:1;padding:12px;border:1px solid var(--dt-border,#e2e8f0);border-radius:10px;background:var(--dt-bg,#f5f6f8);color:var(--dt-text,#1a1a2e);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s">Trezor</button>
       </div>
       <div id="auth-hw-error" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:16px"></div>
       <div style="display:flex;align-items:center;gap:12px;margin:16px 0 12px">
@@ -70,15 +71,6 @@ const UNLOCK_TEMPLATE = `
       <div id="auth-unlock-error" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:18px"></div>
       <button id="auth-unlock-btn" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--dt-accent,#0AC18E);color:#fff;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;font-family:Inter,sans-serif">Unlock \u2192</button>
       <button id="auth-switch-import" style="width:100%;padding:10px;border:none;background:transparent;color:var(--dt-text-secondary,#64748b);font-size:12px;cursor:pointer;margin-top:10px;font-family:Inter,sans-serif">\u2190 Import Different Key</button>
-      <div style="display:flex;align-items:center;gap:12px;margin:14px 0 12px">
-        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
-        <span style="font-size:11px;color:var(--dt-text-secondary,#64748b);font-weight:500">OR</span>
-        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
-      </div>
-      <div style="display:flex;gap:10px">
-        <button id="auth-unlock-ledger" style="flex:1;padding:10px;border:1px solid rgba(0,212,255,.3);border-radius:10px;background:transparent;color:#00d4ff;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">\u{1F511} Ledger</button>
-        <button id="auth-unlock-wc" style="flex:1;padding:10px;border:1px solid rgba(59,130,246,.3);border-radius:10px;background:transparent;color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">\u26D3 WalletConnect</button>
-      </div>
       <div style="display:flex;align-items:center;gap:12px;margin:14px 0 12px">
         <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
         <span style="font-size:11px;color:var(--dt-text-secondary,#64748b);font-weight:500">RESTORE</span>
@@ -166,42 +158,127 @@ function switchToImport() {
   }
 }
 async function doWalletConnect() {
-  const btn = document.getElementById("auth-wc-btn") || document.getElementById("auth-unlock-wc");
-  const errEl = document.getElementById("auth-hw-error") || document.getElementById("auth-unlock-error");
+  const btn = document.getElementById("auth-wc-btn");
+  const resetText = "WalletConnect";
+  const errEl = document.getElementById("auth-hw-error");
   if (errEl) errEl.textContent = "";
   if (btn) {
     btn.disabled = true;
     btn.textContent = "\u26D3 Loading SDK...";
   }
-  let overlay = document.getElementById("wc-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "wc-overlay";
-    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9999";
-    overlay.innerHTML = `<div style="background:#fff;border-radius:20px;padding:32px;text-align:center;max-width:320px">
-      <h3 style="margin:0 0 8px;font-size:18px;font-family:Inter,sans-serif">Scan with your wallet</h3>
-      <p style="margin:0 0 16px;font-size:13px;color:#64748b;font-family:Inter,sans-serif">Open your BCH wallet app and scan this QR code</p>
-      <canvas id="wc-qr" style="max-width:240px;margin:0 auto"></canvas>
-      <button id="wc-cancel" style="margin-top:16px;padding:8px 24px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer;font-family:Inter,sans-serif">Cancel</button>
+  let modal = document.getElementById("wc-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "wc-modal";
+    modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9999";
+    modal.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px;max-width:420px;width:90%;font-family:Inter,sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:18px;font-weight:700">\u26D3 WalletConnect</h3>
+        <button id="wc-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b">\u2715</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button id="wc-tab-scan" style="flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Scan QR</button>
+        <button id="wc-tab-paste" style="flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer">Paste URI</button>
+      </div>
+      <!-- QR Scan Panel -->
+      <div id="wc-scan-panel">
+        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Open your wallet app and scan this QR code</p>
+        <div style="text-align:center"><canvas id="wc-qr-canvas" style="max-width:240px"></canvas></div>
+        <div id="wc-qr-uri" style="font-size:10px;color:#64748b;word-break:break-all;margin:12px 0;background:#f5f6f8;padding:8px;border-radius:8px;max-height:60px;overflow:auto"></div>
+        <div style="display:flex;gap:8px">
+          <button id="wc-copy-btn" style="flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer;font-size:12px;font-family:Inter,sans-serif">Copy URI</button>
+          <button id="wc-scan-cancel" style="flex:1;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer;font-size:12px;font-family:Inter,sans-serif">Cancel</button>
+        </div>
+        <div id="wc-scan-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
+      </div>
+      <!-- URI Paste Panel -->
+      <div id="wc-paste-panel" style="display:none">
+        <p style="font-size:12px;color:#64748b;margin:0 0 12px">Paste a WalletConnect URI from an external wallet</p>
+        <input id="wc-paste-uri" placeholder="wc://..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:monospace;margin-bottom:12px;box-sizing:border-box">
+        <button id="wc-paste-connect" style="width:100%;padding:10px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-weight:600;cursor:pointer;font-size:13px">Connect \u2192</button>
+        <div id="wc-paste-status" style="font-size:12px;margin-top:10px;text-align:center;min-height:20px"></div>
+      </div>
     </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById("wc-cancel")?.addEventListener("click", () => {
-      overlay.style.display = "none";
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "\u26D3 WalletConnect";
-      }
-    });
+    document.body.appendChild(modal);
+  } else {
+    modal.style.display = "flex";
   }
+  document.getElementById("wc-close").onclick = () => {
+    modal.style.display = "none";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = resetText;
+    }
+  };
+  document.getElementById("wc-scan-cancel").onclick = () => {
+    modal.style.display = "none";
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = resetText;
+    }
+  };
+  document.getElementById("wc-tab-scan").onclick = () => {
+    document.getElementById("wc-scan-panel").style.display = "block";
+    document.getElementById("wc-paste-panel").style.display = "none";
+    document.getElementById("wc-tab-scan").style.cssText = "flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer";
+    document.getElementById("wc-tab-paste").style.cssText = "flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer";
+  };
+  document.getElementById("wc-tab-paste").onclick = () => {
+    document.getElementById("wc-scan-panel").style.display = "none";
+    document.getElementById("wc-paste-panel").style.display = "block";
+    document.getElementById("wc-tab-paste").style.cssText = "flex:1;padding:8px;border-radius:8px;border:none;background:#3b82f6;color:#fff;font-size:12px;font-weight:600;cursor:pointer";
+    document.getElementById("wc-tab-scan").style.cssText = "flex:1;padding:8px;border-radius:8px;border:1px solid #3b82f6;background:rgba(59,130,246,.1);color:#3b82f6;font-size:12px;font-weight:600;cursor:pointer";
+  };
+  document.getElementById("wc-copy-btn")?.addEventListener("click", async () => {
+    const uri = (document.getElementById("wc-qr-uri")?.textContent || "").trim();
+    if (!uri) return;
+    try {
+      await navigator.clipboard.writeText(uri);
+      const cbtn = document.getElementById("wc-copy-btn");
+      const prev = cbtn.textContent;
+      cbtn.textContent = "Copied \u2713";
+      setTimeout(() => {
+        cbtn.textContent = prev || "Copy URI";
+      }, 1200);
+    } catch {
+    }
+  });
+  document.getElementById("wc-paste-connect")?.addEventListener("click", async () => {
+    const uri = document.getElementById("wc-paste-uri").value.trim();
+    const statusEl = document.getElementById("wc-paste-status");
+    if (!uri) {
+      statusEl.textContent = "Paste a WalletConnect URI";
+      return;
+    }
+    try {
+      const { connectWalletConnectWithUri } = await import("../core/auth.js");
+      await connectWalletConnectWithUri(uri, (msg) => {
+        if (errEl) errEl.textContent = msg;
+      });
+      modal.style.display = "none";
+      try {
+        const bs = await import("../services/balance-service.js");
+        bs.start();
+      } catch {
+      }
+      navigate("dashboard");
+    } catch (e) {
+      statusEl.textContent = "Error: " + e.message;
+      statusEl.style.color = "#ef4444";
+    }
+  });
   try {
     const { connectWalletConnect } = await import("../core/auth.js");
     await connectWalletConnect(
       async (uri) => {
-        overlay.style.display = "flex";
-        if (btn) btn.textContent = "\u26D3 Scan QR...";
+        modal.style.display = "flex";
+        const uriEl = document.getElementById("wc-qr-uri");
+        if (uriEl) uriEl.textContent = uri;
+        if (btn) btn.textContent = "\u26D3 Scanning...";
         try {
           const QRCode = (await import("../lib/qrcode.js")).default;
-          await QRCode.toCanvas(document.getElementById("wc-qr"), uri, { width: 240, margin: 2 });
+          await QRCode.toCanvas(document.getElementById("wc-qr-canvas"), uri, { width: 240, margin: 2 });
         } catch {
         }
       },
@@ -209,7 +286,7 @@ async function doWalletConnect() {
         if (errEl) errEl.textContent = msg;
       }
     );
-    overlay.style.display = "none";
+    modal.style.display = "none";
     try {
       const bs = await import("../services/balance-service.js");
       bs.start();
@@ -217,14 +294,14 @@ async function doWalletConnect() {
     }
     navigate("dashboard");
   } catch (e) {
-    overlay.style.display = "none";
+    modal.style.display = "none";
     if (errEl) {
       errEl.textContent = e.message;
       errEl.style.color = "#ef4444";
     }
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "\u26D3 WalletConnect";
+      btn.textContent = resetText;
     }
   }
 }
@@ -430,8 +507,8 @@ async function doImportBackup(file) {
   }
 }
 async function doLedger() {
-  const btn = document.getElementById("auth-ledger-btn") || document.getElementById("auth-unlock-ledger");
-  const errEl = document.getElementById("auth-import-error") || document.getElementById("auth-unlock-error");
+  const btn = document.getElementById("auth-ledger-btn");
+  const errEl = document.getElementById("auth-hw-error");
   if (errEl) errEl.textContent = "";
   if (btn) {
     btn.disabled = true;
@@ -460,6 +537,37 @@ async function doLedger() {
     }
   }
 }
+async function doTrezor() {
+  const btn = document.getElementById("auth-trezor-btn");
+  const errEl = document.getElementById("auth-hw-error");
+  if (errEl) errEl.textContent = "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "\u{1F6E1} Connecting...";
+  }
+  try {
+    const { connectTrezor } = await import("../core/auth.js");
+    await connectTrezor((msg) => {
+      if (errEl) errEl.textContent = msg;
+      if (btn) btn.textContent = "\u{1F6E1} " + msg;
+    });
+    try {
+      const bs = await import("../services/balance-service.js");
+      bs.start();
+    } catch {
+    }
+    navigate("dashboard");
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.message;
+      errEl.style.color = "#ff4444";
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "\u{1F6E1} Trezor";
+    }
+  }
+}
 function _bindRestoreBtn() {
   const btn = document.getElementById("auth-restore-btn");
   const fileIn = document.getElementById("auth-restore-file");
@@ -480,6 +588,7 @@ function bindImportEvents() {
   document.getElementById("auth-ledger-btn")?.addEventListener("click", doLedger);
   document.getElementById("auth-wc-btn")?.addEventListener("click", doWalletConnect);
   document.getElementById("auth-wiz-btn")?.addEventListener("click", doWizardConnect);
+  document.getElementById("auth-trezor-btn")?.addEventListener("click", doTrezor);
   _bindRestoreBtn();
 }
 function bindUnlockEvents() {
@@ -488,8 +597,6 @@ function bindUnlockEvents() {
     if (e.key === "Enter") doUnlock();
   });
   document.getElementById("auth-switch-import")?.addEventListener("click", switchToImport);
-  document.getElementById("auth-unlock-ledger")?.addEventListener("click", doLedger);
-  document.getElementById("auth-unlock-wc")?.addEventListener("click", doWalletConnect);
   _bindRestoreBtn();
 }
 function mount(container) {

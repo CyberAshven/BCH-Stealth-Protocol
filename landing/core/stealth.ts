@@ -115,7 +115,7 @@ function deriveSelfStealth(inputPriv: Uint8Array, scanPub: Uint8Array, spendPub:
 }
 function saveStealthUtxo(addr: string, priv: Uint8Array | string, pub: Uint8Array | string, source: string = "fusion"): void {
   const existing = JSON.parse(localStorage.getItem("00stealth_utxos") || "[]");
-  if (existing.some((u) => u.addr === addr)) return;
+  if (existing.some((u: { addr: string }) => u.addr === addr)) return;
   existing.push({
     addr,
     priv: priv instanceof Uint8Array ? b2h(priv) : priv,
@@ -170,6 +170,7 @@ function deriveStealthSendAddr(
     const outpoint = concat(txidLE, _u32LE(vout));
     if (!smallest || _compareBytes(outpoint, smallest) < 0) smallest = outpoint;
   }
+  if (!smallest) throw new Error('No outpoints provided for stealth address computation');
   const input_hash = sha256(concat(smallest, A_sum));
   const input_hash_big = BigInt("0x" + b2h(input_hash)) % N_SECP;
   const tweaked_a = a_sum * input_hash_big % N_SECP;

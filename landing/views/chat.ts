@@ -31,6 +31,7 @@ import {
 
 import * as auth from '../core/auth.js';
 import { pubHashToCashAddr } from '../core/cashaddr.js';
+import { rand } from '../core/utils.js';
 
 /* ── Module exports ── */
 export const id = 'chat';
@@ -50,6 +51,7 @@ let _pendingChainParts = new Map();
 let _pendingRelayParts = new Map();
 let _seenTxids = new Set();
 let _attempts = 0;
+let _externalWalletConnected = false;
 const MAX_ATTEMPTS = 3;
 
 /* Nostr direct WebSocket publishing */
@@ -345,6 +347,85 @@ function _stopScanner() {
 }
 
 /* ══════════════════════════════════════════
+   EXTERNAL WALLET TX SIGNING (WalletConnect, Ledger, Trezor)
+   ══════════════════════════════════════════ */
+
+async function _buildUnsignedBchTx(spendAddr, outputObjs) {
+  // Build unsigned TX for external wallet signing
+  const addrData = await _bcGetAddr(spendAddr);
+  if (!addrData?.utxo?.length) throw new Error('No UTXOs available');
+
+  const inputs = addrData.utxo.map(u => ({
+    txidLE: h2b(u.transaction_hash).reverse(),
+    vout: u.index,
+    sequence: 0xffffffff,
+    value: u.value,
+  }));
+
+  // Build the unsigned TX (inputs without scriptSig)
+  const unsignedParts = [
+    u32LE(1),  // nVersion
+    u32LE(0),  // forkId
+    writeVarint(inputs.length),
+  ];
+  for (const inp of inputs) {
+    unsignedParts.push(inp.txidLE, u32LE(inp.vout), writeVarint(0), u32LE(inp.sequence));
+  }
+  unsignedParts.push(writeVarint(outputObjs.length));
+  for (const out of outputObjs) {
+    unsignedParts.push(u64LE(BigInt(out.value)), writeVarint(out.script.length), out.script);
+  }
+  unsignedParts.push(u32LE(0)); // locktime
+
+  const unsignedHex = b2h(concat(...unsignedParts));
+  const sourceOutputs = inputs.map(inp => ({ value: inp.value, index: inp.vout }));
+
+  return { unsignedHex, sourceOutputs, inputs, outputObjs };
+}
+
+async function _signAndBroadcastBchTx(unsignedHex, sourceOutputs, inputs, outputs, spendAddr, userPrompt) {
+  const keys = auth.getKeys();
+  if (!keys) throw new Error('Not authenticated');
+
+  let signedHex = null;
+
+  // Route to appropriate signer based on wallet type
+  if (auth.isWalletConnect()) {
+    // External WalletConnect wallet
+    signedHex = await auth.wcSignTx(unsignedHex, sourceOutputs, userPrompt);
+  } else if (auth.isLedger()) {
+    // Ledger hardware wallet
+    const ledgerUtxos = inputs.map((inp, i) => ({
+      txid: b2h(inp.txidLE.reverse()),
+      vout: inp.vout,
+      value: inp.value,
+      addr: spendAddr,
+    }));
+    signedHex = await auth.ledgerSignTx(ledgerUtxos, outputs);
+  } else if (keys.privKey) {
+    // Local seed wallet - sign directly
+    const myHash160 = ripemd160(sha256(keys.pubKey));
+    const myScript = p2pkhScript(myHash160);
+    const bchPriv32 = keys.privKey;
+    const bchPub33 = secp256k1.getPublicKey(bchPriv32, true);
+    const signedInputs = [];
+    for (let i = 0; i < inputs.length; i++) {
+      const sighash = bchSighash(1, 0, inputs, outputs, i, myScript, inputs[i].value);
+      const sig = secp256k1.sign(sighash, bchPriv32, { lowS: true });
+      const derSig = concat(sig.toDERRawBytes(), new Uint8Array([0x41]));
+      const scriptSig = concat(new Uint8Array([derSig.length]), derSig, new Uint8Array([bchPub33.length]), bchPub33);
+      signedInputs.push({ ...inputs[i], scriptSig });
+    }
+    signedHex = b2h(serializeTx(1, 0, signedInputs, outputs));
+  } else {
+    throw new Error('Unable to sign transaction');
+  }
+
+  // Broadcast
+  return _bcBroadcast(signedHex);
+}
+
+/* ══════════════════════════════════════════
    SEND MESSAGE (v2 split-knowledge)
    ══════════════════════════════════════════ */
 
@@ -367,12 +448,13 @@ async function _sendCcshMsgV2(contact, text) {
   });
 
   /* 3. Build BCH TX */
-  let spendPrivHex = prof.bch_priv_hex;
   let spendAddr = prof.bch_address;
-  let addrData = await _bcGetAddr(spendAddr);
+  const spendPrivHex = prof.bch_priv_hex;
   let usingPrev = false;
+
+  // Try current address, fallback to prev if no UTXOs
+  let addrData = await _bcGetAddr(spendAddr);
   if (!addrData?.utxo?.length && prof.bch_priv_hex_prev) {
-    spendPrivHex = prof.bch_priv_hex_prev;
     spendAddr = prof.bch_address_prev;
     addrData = await _bcGetAddr(spendAddr);
     usingPrev = true;
@@ -406,20 +488,14 @@ async function _sendCcshMsgV2(contact, text) {
     vout: u.index, sequence: 0xffffffff, value: u.value,
   }));
 
-  /* Sign */
-  const bchPriv32 = h2b(spendPrivHex);
-  const bchPub33 = secp256k1.getPublicKey(bchPriv32, true);
-  const signedInputs = [];
-  for (let i = 0; i < inputs.length; i++) {
-    const sighash = bchSighash(1, 0, inputs, outputs, i, myScript, inputs[i].value);
-    const sig = secp256k1.sign(sighash, bchPriv32, { lowS: true });
-    const derSig = concat(sig.toDERRawBytes(), new Uint8Array([0x41]));
-    const scriptSig = concat(new Uint8Array([derSig.length]), derSig, new Uint8Array([bchPub33.length]), bchPub33);
-    signedInputs.push({ ...inputs[i], scriptSig });
+  /* Sign via external wallet or local key */
+  let txid;
+  try {
+    const { unsignedHex, sourceOutputs } = await _buildUnsignedBchTx(spendAddr, outputs);
+    txid = await _signAndBroadcastBchTx(unsignedHex, sourceOutputs, inputs, outputs, spendAddr, 'Sign chat message transaction');
+  } catch (e) {
+    throw e;
   }
-
-  /* Broadcast chain TX */
-  const txid = await _bcBroadcast(b2h(serializeTx(1, 0, signedInputs, outputs)));
 
   /* 4. Relay half to Nostr */
   const relayPkt = packV2({
@@ -628,6 +704,51 @@ function _showImport(area) {
   document.getElementById('chat-gen-btn')?.addEventListener('click', _generateKey);
   document.getElementById('chat-import-btn')?.addEventListener('click', _importKey);
   document.getElementById('chat-import-pass2')?.addEventListener('keydown', e => { if (e.key === 'Enter') _importKey(); });
+}
+
+function _showExternalSetup(area) {
+  if (!area) area = document.getElementById('chat-auth-area');
+  if (!area) return;
+  area.innerHTML = `
+    <div style="max-width:440px;margin:0 auto;padding:40px 24px">
+      <div style="text-align:center">
+        <div style="font-size:48px;font-weight:900;color:var(--dt-accent,#0AC18E);margin-bottom:4px">00</div>
+        <div style="font-size:11px;color:var(--dt-text-secondary);letter-spacing:2px;margin-bottom:18px">CHAT · LOCAL PROFILE</div>
+        <div style="font-size:12px;color:var(--dt-text-secondary);margin-bottom:18px">External wallet connected. Set a local chat password.</div>
+      </div>
+      <div class="dt-form-group"><div class="dt-form-lbl">SET PASSWORD</div>
+        <input class="dt-form-input" type="password" id="chat-ext-pass" placeholder="Min 8 characters...">
+      </div>
+      <div class="dt-form-group"><div class="dt-form-lbl">CONFIRM PASSWORD</div>
+        <input class="dt-form-input" type="password" id="chat-ext-pass2" placeholder="Confirm...">
+      </div>
+      <div id="chat-ext-err" style="font-size:12px;color:#ef4444;min-height:18px;margin-bottom:8px"></div>
+      <button class="dt-action-btn" id="chat-ext-create" style="background:var(--dt-accent);width:100%">Create Chat Profile</button>
+    </div>`;
+
+  const create = async () => {
+    const pass = document.getElementById('chat-ext-pass')?.value;
+    const pass2 = document.getElementById('chat-ext-pass2')?.value;
+    const errEl = document.getElementById('chat-ext-err');
+    if (errEl) errEl.textContent = '';
+    if (!pass || pass.length < 8) { if (errEl) errEl.textContent = 'Password must be at least 8 characters'; return; }
+    if (pass !== pass2) { if (errEl) errEl.textContent = 'Passwords do not match'; return; }
+    try {
+      const seed64 = concat(rand(32), rand(32));
+      _profile = deriveProfileFromSeed(seed64);
+      _sessionPass = pass;
+      localStorage.setItem('00chat_vault', await encryptVault(_profile, pass));
+      localStorage.setItem('00chat_attempts', '0');
+      localStorage.setItem('00_session_auth', JSON.stringify({ p: btoa(pass), ts: Date.now() }));
+      _attempts = 0;
+      _bootIntoChat();
+    } catch (e) {
+      if (errEl) errEl.textContent = 'Error: ' + e.message;
+    }
+  };
+
+  document.getElementById('chat-ext-create')?.addEventListener('click', create);
+  document.getElementById('chat-ext-pass2')?.addEventListener('keydown', e => { if (e.key === 'Enter') create(); });
 }
 
 async function _generateKey() {
@@ -1455,6 +1576,7 @@ export async function mount(container) {
 
   /* Auto-derive chat identity from wallet HD keys */
   const keys = auth.getKeys();
+  _externalWalletConnected = !!(auth.isUnlocked() && (keys?.walletConnect || keys?.ledger || keys?.trezor));
   if (auth.isUnlocked() && keys?.acctPriv && keys?.acctChain) {
     try {
       const { bip32Child } = await import('../core/hd.js');
@@ -1519,6 +1641,9 @@ export async function mount(container) {
       } catch {}
     }
     _showAuth();
+    if (_externalWalletConnected && !localStorage.getItem('00chat_vault')) {
+      _showExternalSetup(null);
+    }
   }
 }
 

@@ -97,7 +97,7 @@ export async function sendTrx({ toAddress, amountSun, privKeyHex }: SendTrxParam
 }
 
 /* ── Send TRC-20 Token (USDT etc.) ── */
-export async function sendTrc20({ toAddress, amount, contractAddress, privKeyHex, decimals = 6 }) {
+export async function sendTrc20({ toAddress, amount, contractAddress, privKeyHex, decimals = 6 }: { toAddress: string; amount: number | bigint; contractAddress: string; privKeyHex: string; decimals?: number }) {
   const fromHex = getAddress(privKeyHex);
   const toHex = base58Decode(toAddress);
   const contractHex = base58Decode(contractAddress);
@@ -145,7 +145,7 @@ export async function sendTrc20({ toAddress, amount, contractAddress, privKeyHex
   throw new Error(result.message ? hexToUtf8(result.message) : JSON.stringify(result));
 }
 
-function hexToUtf8(hex) {
+function hexToUtf8(hex: string): string {
   try { return decodeURIComponent(hex.replace(/[0-9a-f]{2}/g, '%$&')); } catch { return hex; }
 }
 

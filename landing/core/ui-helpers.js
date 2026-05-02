@@ -1,11 +1,11 @@
 import * as state from "./state.js";
 function balanceChipHtml(chains = ["bch"]) {
+  const icons = { bch: "icons/bch.png", btc: "icons/btc.png", eth: "icons/eth.png", ltc: "icons/ltc.png", xmr: "icons/xmr.png" };
+  const tickers = { bch: "BCH", btc: "BTC", eth: "ETH", ltc: "LTC", xmr: "XMR" };
+  const decs = { bch: 8, btc: 8, eth: 18, ltc: 8, xmr: 12 };
+  const balances = state.get("balances") || {};
   return `<div style="display:flex;gap:12px;margin-bottom:20px">
     ${chains.map((c) => {
-    const icons = { bch: "icons/bch.png", btc: "icons/btc.png", eth: "icons/eth.png", ltc: "icons/ltc.png", xmr: "icons/xmr.png" };
-    const tickers = { bch: "BCH", btc: "BTC", eth: "ETH", ltc: "LTC", xmr: "XMR" };
-    const decs = { bch: 8, btc: 8, eth: 18, ltc: 8, xmr: 12 };
-    const balances = state.get("balances") || {};
     const bal = balances[c] || 0;
     const n = typeof bal === "string" ? parseFloat(bal) : bal;
     const val = (n / Math.pow(10, decs[c] || 8)).toFixed(8);
@@ -20,10 +20,9 @@ function balanceChipHtml(chains = ["bch"]) {
   </div>`;
 }
 function statusDotsHtml(services = ["fulcrum"]) {
+  const labels = { fulcrum: "Fulcrum", nostr: "Nostr", btc: "BTC Node" };
   return `<div style="display:flex;align-items:center;gap:12px">
     ${services.map((s) => {
-    const labels = { fulcrum: "Fulcrum", nostr: "Nostr", btc: "BTC Node" };
-    const colors = { fulcrum: "#0AC18E", nostr: "#627EEA", btc: "#F7931A" };
     return `<div style="display:flex;align-items:center;gap:4px">
         <div id="ui-dot-${s}" style="width:6px;height:6px;border-radius:50%;background:var(--dt-text-secondary);opacity:.3;transition:all .3s"></div>
         <span style="font-size:10px;color:var(--dt-text-secondary);font-weight:500">${labels[s] || s}</span>

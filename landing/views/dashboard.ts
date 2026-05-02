@@ -13,8 +13,144 @@ export const id = 'dashboard';
 export const title = '00 Protocol';
 export const icon = '⌂';
 
-let _container = null;
-let _unsubs = [];
+let _container: HTMLElement | null = null;
+let _unsubs: Array<() => void> = [];
+
+async function _connectWalletConnectFromDashboard() {
+  const statusEl = document.getElementById('dash-ext-status');
+  const showStatus = (m: string) => { if (statusEl) statusEl.textContent = m; };
+  try {
+    showStatus('Loading WalletConnect...');
+
+    let modal = document.getElementById('dash-wc-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'dash-wc-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+      modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:420px;width:92%;text-align:center">
+        <h3 style="margin:0 0 8px">WalletConnect</h3>
+        <p style="margin:0 0 10px;font-size:12px;color:#64748b">Use QR scan or paste a wc: URI.</p>
+        <canvas id="dash-wc-qr" style="max-width:240px"></canvas>
+        <div id="dash-wc-uri" style="margin-top:10px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:11px;word-break:break-all;text-align:left;max-height:80px;overflow:auto"></div>
+        <input id="dash-wc-uri-input" placeholder="Paste wc: URI" style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:monospace;box-sizing:border-box" />
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+          <button id="dash-wc-start" style="padding:8px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer">Show QR</button>
+          <button id="dash-wc-connect-uri" style="padding:8px 14px;border:none;border-radius:8px;background:#0AC18E;color:#fff;cursor:pointer">Connect URI</button>
+          <button id="dash-wc-copy" style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer">Copy URI</button>
+          <button id="dash-wc-close" style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer">Close</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      document.getElementById('dash-wc-close')?.addEventListener('click', () => { modal!.style.display = 'none'; });
+      document.getElementById('dash-wc-copy')?.addEventListener('click', async () => {
+        const u = document.getElementById('dash-wc-uri')?.textContent || '';
+        if (!u) return;
+        try { await navigator.clipboard.writeText(u); } catch {}
+      });
+    } else {
+      modal.style.display = 'flex';
+    }
+
+    const { connectWalletConnect, connectWalletConnectWithUri } = await import('../core/auth.js');
+    const finishConnected = async () => {
+      try { const bs = await import('../services/balance-service.js'); bs.start(auth.getKeys()); } catch {}
+      showStatus('WalletConnect connected');
+      const m = document.getElementById('dash-wc-modal');
+      if (m) m.style.display = 'none';
+    };
+
+    document.getElementById('dash-wc-start')!.onclick = async () => {
+      try {
+        await connectWalletConnect(
+          async (uri: string) => {
+            showStatus('Scan WalletConnect QR...');
+            const uriEl = document.getElementById('dash-wc-uri');
+            if (uriEl) uriEl.textContent = uri;
+            try {
+              const QRCode = (await import('../lib/qrcode.js')).default;
+              await QRCode.toCanvas(document.getElementById('dash-wc-qr'), uri, { width: 240, margin: 2 });
+            } catch {}
+          },
+          (msg: string) => showStatus(msg)
+        );
+        await finishConnected();
+      } catch (e: any) {
+        showStatus('WalletConnect error: ' + (e?.message || 'unknown'));
+      }
+    };
+
+    document.getElementById('dash-wc-connect-uri')!.onclick = async () => {
+      const input = document.getElementById('dash-wc-uri-input') as HTMLInputElement | null;
+      const uri = input?.value?.trim() || '';
+      if (!uri) {
+        showStatus('Paste a wc: URI first');
+        return;
+      }
+      try {
+        showStatus('Connecting with URI...');
+        await connectWalletConnectWithUri(uri, (msg: string) => showStatus(msg));
+        await finishConnected();
+      } catch (e: any) {
+        showStatus('WalletConnect URI error: ' + (e?.message || 'unknown'));
+      }
+    };
+  } catch (e: any) {
+    showStatus('WalletConnect error: ' + (e?.message || 'unknown'));
+  }
+}
+
+async function _openWizardDappMode() {
+  const statusEl = document.getElementById('dash-ext-status');
+  const WC = (window as any).WizardConnect;
+  if (!WC) {
+    if (statusEl) statusEl.textContent = 'WizardConnect module not loaded';
+    return;
+  }
+  let modal = document.getElementById('dash-wiz-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'dash-wiz-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+    modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:420px;width:92%">
+      <h3 style="margin:0 0 8px">WizardConnect</h3>
+      <p style="font-size:12px;color:#64748b;margin:0 0 10px">Paste a wiz:// URI from the external wallet.</p>
+      <input id="dash-wiz-uri" placeholder="wiz://?p=...&s=..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;font-family:monospace;box-sizing:border-box" />
+      <div id="dash-wiz-status" style="font-size:12px;min-height:18px;margin-top:8px;color:#334155"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button id="dash-wiz-close" style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;cursor:pointer">Close</button>
+        <button id="dash-wiz-connect" style="padding:8px 14px;border:none;border-radius:8px;background:#0AC18E;color:#fff;cursor:pointer">Connect</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('dash-wiz-close')?.addEventListener('click', () => { modal!.style.display = 'none'; });
+    document.getElementById('dash-wiz-connect')?.addEventListener('click', () => {
+      const uri = (document.getElementById('dash-wiz-uri') as HTMLInputElement)?.value?.trim();
+      const s = document.getElementById('dash-wiz-status');
+      if (!uri) {
+        if (s) s.textContent = 'Paste a wiz:// URI first';
+        return;
+      }
+      try {
+        const dapp = new WC.DappManager('00 Wallet', '');
+        dapp.onConnect((walletName: string, walletIcon: string, paths: any[]) => {
+          if (s) s.textContent = 'Connected to ' + (walletName || 'wallet') + ' (' + (paths?.length || 0) + ' paths)';
+          localStorage.setItem('00_wiz_paths', JSON.stringify(paths || []));
+          if (statusEl) statusEl.textContent = 'WizardConnect connected';
+        });
+        dapp.onDisconnect((reason: string) => {
+          if (s) s.textContent = 'Disconnected: ' + reason;
+        });
+        dapp.connect(uri);
+        if (s) s.textContent = 'Connecting...';
+      } catch (e: any) {
+        if (s) s.textContent = 'Error: ' + (e?.message || 'unknown');
+      }
+    });
+  } else {
+    modal.style.display = 'flex';
+  }
+  if (statusEl) statusEl.textContent = 'WizardConnect ready';
+}
 
 /* ── Chain config (same order as wallet.html v1) ── */
 /* type: 'chain' = main row, 'token' = indented sub-row (stablecoin) */
@@ -47,9 +183,9 @@ const CHAINS = [
 ];
 
 const PRICE_CHAINS = ['bch','btc','eth','xmr','ltc','bnb','matic','avax','sol','trx','xrp','xlm'];
-const PRICE_DOTS = {bch:'#0AC18E',btc:'#F7931A',eth:'#627EEA',xmr:'#FF6600',ltc:'#345D9D',bnb:'#F3BA2F',matic:'#8247E5',avax:'#E84142',sol:'#9945FF',trx:'#FF0013',xrp:'#23292F',xlm:'#14B6E7'};
+const PRICE_DOTS: Record<string, string> = {bch:'#0AC18E',btc:'#F7931A',eth:'#627EEA',xmr:'#FF6600',ltc:'#345D9D',bnb:'#F3BA2F',matic:'#8247E5',avax:'#E84142',sol:'#9945FF',trx:'#FF0013',xrp:'#23292F',xlm:'#14B6E7'};
 
-function fmtBal(raw, dec, ticker) {
+function fmtBal(raw: number | string | undefined | null, dec: number, ticker: string): string {
   if (raw === undefined || raw === null) return '0 ' + ticker;
   const n = typeof raw === 'string' ? parseFloat(raw) : raw;
   if (isNaN(n)) return '0 ' + ticker;
@@ -58,7 +194,7 @@ function fmtBal(raw, dec, ticker) {
   return val.toFixed(dec > 6 ? 8 : Math.min(dec, 4)) + ' ' + ticker;
 }
 
-function fmtFiat(raw, dec, price) {
+function fmtFiat(raw: number | string | undefined | null, dec: number, price: number | undefined | null): string {
   if (!price || raw === undefined || raw === null) return '$0.00';
   const n = typeof raw === 'string' ? parseFloat(raw) : raw;
   if (isNaN(n)) return '$0.00';
@@ -66,7 +202,7 @@ function fmtFiat(raw, dec, price) {
   return '$' + v.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
-function fmtPrice(p) {
+function fmtPrice(p: number | undefined | null): string {
   if (!p) return '$—';
   return '$' + p.toLocaleString('en', {maximumFractionDigits:2});
 }
@@ -74,8 +210,8 @@ function fmtPrice(p) {
 /* ── Render ── */
 function render() {
   if (!_container) return;
-  const balances = state.get('balances') || {};
-  const prices = state.get('prices') || {};
+  const balances = (state.get('balances') || {}) as Record<string, unknown>;
+  const prices = (state.get('prices') || {}) as Record<string, { price?: number }>;
 
   // Total portfolio
   let total = 0;
@@ -89,7 +225,7 @@ function render() {
     else if (c.id.startsWith('rlusd')) priceKey = 'usdc';
     const p = (prices[priceKey]?.price) || 0;
     if (bal !== undefined && p) {
-      const n = typeof bal === 'string' ? parseFloat(bal) : bal;
+      const n = typeof bal === 'string' ? parseFloat(bal as string) : (bal as number);
       if (!isNaN(n)) total += (n / Math.pow(10, c.dec)) * p;
     }
   }
@@ -111,8 +247,9 @@ function render() {
     else if (c.id.startsWith('usdt')) priceKey = 'usdt';
     else if (c.id.startsWith('rlusd')) priceKey = 'usdc'; // ~$1
     const p = prices[priceKey]?.price || 0;
-    const balStr = fmtBal(bal, c.dec, c.ticker);
-    const fiatStr = fmtFiat(bal, c.dec, p);
+    const balTyped = bal as number | string | undefined | null;
+    const balStr = fmtBal(balTyped, c.dec, c.ticker);
+    const fiatStr = fmtFiat(balTyped, c.dec, p);
 
     if (c.type === 'token') {
       // Token sub-row (stablecoin) — indented with └
@@ -164,11 +301,28 @@ function render() {
       </div>
       <div class="wd-ov-prices">${priceBar}</div>
     </div>
+    <div style="margin-top:12px;background:var(--dt-surface,#fff);border:1px solid var(--dt-border,#e2e8f0);border-radius:14px;padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12px;color:var(--dt-text-secondary,#64748b)">External Wallets</div>
+          <div style="font-size:14px;font-weight:600;color:var(--dt-text,#1a1a2e)">Connect after login</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="dash-connect-wc" style="padding:8px 12px;border:1px solid #3b82f633;border-radius:8px;background:transparent;color:#2563eb;cursor:pointer;font-weight:600">WalletConnect</button>
+          <button id="dash-connect-wiz" style="padding:8px 12px;border:1px solid #7c3aed33;border-radius:8px;background:transparent;color:#7c3aed;cursor:pointer;font-weight:600">WizardConnect</button>
+          <button id="dash-open-chat" onclick="window.location.hash='#/chat'" style="padding:8px 12px;border:1px solid #0AC18E33;border-radius:8px;background:transparent;color:#0AC18E;cursor:pointer;font-weight:600">💬 Chat</button>
+        </div>
+      </div>
+      <div id="dash-ext-status" style="margin-top:8px;font-size:12px;color:var(--dt-text-secondary,#64748b)"></div>
+    </div>
     <div class="wd-accounts">${cards}</div>
   </div>`;
+
+  document.getElementById('dash-connect-wc')?.addEventListener('click', _connectWalletConnectFromDashboard);
+  document.getElementById('dash-connect-wiz')?.addEventListener('click', _openWizardDappMode);
 }
 
-export function mount(container) {
+export function mount(container: HTMLElement) {
   _container = container;
   if (!auth.isUnlocked()) { navigate('auth'); return; }
   render();

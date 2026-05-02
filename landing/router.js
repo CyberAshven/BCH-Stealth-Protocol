@@ -18,6 +18,25 @@ function navigate(path) {
 function currentPath() {
   return _currentPath;
 }
+function _renderError(path, msg) {
+  if (!_container) return;
+  _container.classList.remove("loading");
+  _container.textContent = "";
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "padding:40px;text-align:center;color:var(--dt-text-secondary)";
+  const icon = document.createElement("div");
+  icon.style.cssText = "font-size:24px;margin-bottom:12px";
+  icon.textContent = "\u26A0";
+  const pathEl = document.createElement("div");
+  pathEl.textContent = "Failed to load " + path;
+  const msgEl = document.createElement("div");
+  msgEl.style.cssText = "font-size:12px;margin-top:8px;opacity:.6";
+  msgEl.textContent = msg;
+  wrap.appendChild(icon);
+  wrap.appendChild(pathEl);
+  wrap.appendChild(msgEl);
+  _container.appendChild(wrap);
+}
 async function handleRoute() {
   const hash = window.location.hash || "#/";
   const fullPath = hash.slice(2) || "dashboard";
@@ -55,15 +74,9 @@ async function handleRoute() {
     if (_onNavigate) _onNavigate(path, mod);
     if (mod.title) document.title = mod.title;
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
     console.error("[router] failed to load view:", path, e);
-    if (_container) {
-      _container.classList.remove("loading");
-      _container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--dt-text-secondary)">
-        <div style="font-size:24px;margin-bottom:12px">\u26A0</div>
-        <div>Failed to load ${path}</div>
-        <div style="font-size:12px;margin-top:8px;opacity:.6">${e.message}</div>
-      </div>`;
-    }
+    _renderError(path, msg);
   }
 }
 function init() {

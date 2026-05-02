@@ -16,6 +16,35 @@ import { pubHashToCashAddr, cashAddrToHash20 } from './cashaddr.js';
 import { b2h, h2b, utf8, rand } from './utils.js';
 import { ripemd160 } from '../lib/noble-hashes.js';
 
+function _cashAddrToHash20Safe(addr: string): Uint8Array {
+  try {
+    return cashAddrToHash20(addr);
+  } catch {
+    // Fallback decoder to avoid runtime breakage if import scope is stale.
+    const alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    const raw = (addr || '').toLowerCase().replace(/^bitcoincash:/, '');
+    const data: number[] = [];
+    for (const c of raw) {
+      const v = alphabet.indexOf(c);
+      if (v === -1) throw new Error('invalid cashaddr character: ' + c);
+      data.push(v);
+    }
+    const payload = data.slice(0, -8);
+    const bytes: number[] = [];
+    let acc = 0;
+    let bits = 0;
+    for (const v of payload) {
+      acc = (acc << 5) | v;
+      bits += 5;
+      while (bits >= 8) {
+        bits -= 8;
+        bytes.push((acc >> bits) & 0xff);
+      }
+    }
+    return new Uint8Array(bytes.slice(1, 21));
+  }
+}
+
 interface AuthKeys {
   privKey: Uint8Array | null;
   pubKey: Uint8Array | null;
@@ -33,6 +62,7 @@ interface AuthKeys {
   xmr?: unknown;
   ledger?: boolean;
   walletConnect?: boolean;
+  trezor?: boolean;
 }
 
 interface Profile {
@@ -55,6 +85,42 @@ let _password: string | null = null;
 let _listeners = new Set<AuthListener>();
 
 const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+
+async function _importFirst(urls: string[]): Promise<any> {
+  let lastErr: unknown = null;
+  for (const u of urls) {
+    try {
+      // @ts-ignore remote URL module
+      return await import(u);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('Failed to load remote module');
+}
+
+async function _loadScript(src: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector(`script[data-src="${src}"]`) as HTMLScriptElement | null;
+    if (existing) {
+      if ((existing as any)._loaded) return resolve();
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('Script load failed: ' + src)), { once: true });
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.crossOrigin = 'anonymous';
+    s.setAttribute('data-src', src);
+    s.onload = () => {
+      (s as any)._loaded = true;
+      resolve();
+    };
+    s.onerror = () => reject(new Error('Script load failed: ' + src));
+    document.head.appendChild(s);
+  });
+}
 
 /* ── Vault encryption (AES-256-GCM via Web Crypto) ── */
 /* Compatible with wallet.html v1 format: JSON { v:1, salt:hex, iv:hex, data:hex } */
@@ -102,7 +168,7 @@ async function _deriveKeys(profile: Profile): Promise<AuthKeys | null> {
     acctPriv = profile.acctPrivHex ? h2b(profile.acctPrivHex) : null;
     acctChain = profile.acctChainHex ? h2b(profile.acctChainHex) : null;
   } else if (profile.wif || profile.priv) {
-    privKey = h2b(profile.priv || profile.wif);
+    privKey = h2b((profile.priv || profile.wif)!);
     acctPriv = null;
     acctChain = null;
   }
@@ -293,7 +359,7 @@ export async function connectLedger(onProgress?: (msg: string) => void): Promise
 
       // Check if address has been used
       const script = new Uint8Array([0x76, 0xa9, 0x14, ...h160, 0x88, 0xac]);
-      const sh = Array.from(sha256(script)).reverse().map((b: number) => b.toString(16).padStart(2, '0')).join('');
+      const sh = Array.from(sha256(script)).reverse().map(b => (b as number).toString(16).padStart(2, '0')).join('');
       try {
         const hist = await (window as any)._fvCall('blockchain.scripthash.get_history', [sh]) || [];
         const utxos = await (window as any)._fvCall('blockchain.scripthash.listunspent', [sh]) || [];
@@ -411,15 +477,33 @@ function _ledgerPath(changeIdx: number, addrIdx: number): number[] {
 
 let _wcClient: any = null, _wcSession: any = null;
 const WC_PROJECT_ID = '082bda1ddb7c62dc3aee194b5e8dc8f9';
+const WC_REQUIRED_NAMESPACES = {
+  bch: { chains: ['bch:bitcoincash'], methods: ['bch_getAddresses', 'bch_signTransaction', 'bch_signMessage'], events: ['addressesChanged'] },
+};
 
 export function isWalletConnect() { return !!_wcSession; }
 export function getWcClient() { return _wcClient; }
 export function getWcSession() { return _wcSession; }
 
+async function _finishWcSession(client: any, session: any): Promise<{ addr: string }> {
+  _wcSession = session;
+  const addresses = await client.request({ chainId: 'bch:bitcoincash', topic: _wcSession.topic, request: { method: 'bch_getAddresses', params: {} } });
+  const bchAddr = addresses[0];
+  _wcSubEvents(client);
+  localStorage.setItem('00_wc_session', 'true');
+  const sp = rand(32);
+  _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
+  _profile = { type: 'walletconnect' };
+  _notifyListeners();
+  return { addr: bchAddr };
+}
+
 async function _initWC() {
   if (_wcClient) return _wcClient;
-  // @ts-expect-error esm.sh module
-  const mod = await import('https://esm.sh/@walletconnect/sign-client@2.17.5');
+  const mod = await _importFirst([
+    'https://esm.sh/@walletconnect/sign-client@2.17.5',
+    'https://cdn.jsdelivr.net/npm/@walletconnect/sign-client@2.17.5/+esm',
+  ]);
   const SC = mod.SignClient || mod.default;
   _wcClient = await SC.init({
     projectId: WC_PROJECT_ID,
@@ -433,21 +517,27 @@ export async function connectWalletConnect(onUri?: (uri: string) => void, onProg
   const client = await _initWC();
   onProgress?.('Pairing...');
   const { uri, approval } = await client.connect({
-    requiredNamespaces: {
-      bch: { chains: ['bch:bitcoincash'], methods: ['bch_getAddresses', 'bch_signTransaction', 'bch_signMessage'], events: ['addressesChanged'] },
-    },
+    requiredNamespaces: WC_REQUIRED_NAMESPACES,
   });
   if (uri) onUri?.(uri);
-  _wcSession = await approval();
-  const addresses = await client.request({ chainId: 'bch:bitcoincash', topic: _wcSession.topic, request: { method: 'bch_getAddresses', params: {} } });
-  const bchAddr = addresses[0];
-  _wcSubEvents(client);
-  localStorage.setItem('00_wc_session', 'true');
-  const sp = rand(32);
-  _keys = { privKey: null, pubKey: null, hash160: cashAddrToHash20(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
-  _profile = { type: 'walletconnect' };
-  _notifyListeners();
-  return { addr: bchAddr };
+  const session = await approval();
+  return _finishWcSession(client, session);
+}
+
+export async function connectWalletConnectWithUri(uri: string, onProgress?: (msg: string) => void): Promise<{ addr: string }> {
+  if (!uri || !uri.startsWith('wc:')) throw new Error('Invalid WalletConnect URI');
+  onProgress?.('Loading WalletConnect SDK...');
+  const client = await _initWC();
+  onProgress?.('Pairing URI...');
+  await client.pair({ uri });
+  const topic = (uri.match(/^wc:([^@]+)@/) || [])[1];
+  onProgress?.('Creating session...');
+  const { approval } = await client.connect({
+    pairingTopic: topic,
+    requiredNamespaces: WC_REQUIRED_NAMESPACES,
+  });
+  const session = await approval();
+  return _finishWcSession(client, session);
 }
 
 export async function restoreWcSession() {
@@ -459,7 +549,7 @@ export async function restoreWcSession() {
     _wcSession = client.session.get(key);
     const addrs = await client.request({ chainId: 'bch:bitcoincash', topic: _wcSession.topic, request: { method: 'bch_getAddresses', params: {} } });
     const bchAddr = addrs[0]; const sp = rand(32);
-    _keys = { privKey: null, pubKey: null, hash160: cashAddrToHash20(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
+    _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
     _profile = { type: 'walletconnect' };
     _wcSubEvents(client); _notifyListeners();
     return true;
@@ -479,13 +569,70 @@ export async function wcDisconnect() {
   localStorage.removeItem('00_wc_session'); _notifyListeners();
 }
 
+/* ══════════════════════════════════════════
+   TREZOR SUPPORT (address-only connect)
+   ══════════════════════════════════════════ */
+export async function connectTrezor(onProgress?: (msg: string) => void): Promise<{ addr: string }> {
+  onProgress?.('Loading Trezor SDK...');
+  if (!(window as any).TrezorConnect) {
+    await _loadScript('https://connect.trezor.io/9/trezor-connect.js');
+  }
+  const T = (window as any).TrezorConnect;
+  if (!T) throw new Error('Trezor SDK unavailable');
+
+  if (T?.init) {
+    await T.init({
+      lazyLoad: true,
+      popup: true,
+      manifest: {
+        email: 'support@0penw0rld.com',
+        appUrl: 'https://0penw0rld.com',
+      },
+    });
+  }
+
+  onProgress?.('Confirm on Trezor...');
+  const r = await T.getAddress({
+    path: "m/44'/145'/0'/0/0",
+    coin: 'bch',
+    showOnTrezor: true,
+  });
+
+  if (!r?.success) {
+    const msg = r?.payload?.error || 'Trezor connection failed';
+    throw new Error(msg);
+  }
+
+  const bchAddr = r.payload.address;
+  const sp = rand(32);
+  _keys = {
+    privKey: null,
+    pubKey: null,
+    hash160: _cashAddrToHash20Safe(bchAddr),
+    bchAddr,
+    acctPriv: null,
+    acctChain: null,
+    sessionPriv: sp,
+    sessionPub: b2h(secp256k1.getPublicKey(sp, true)),
+    stealthSpendPriv: null,
+    stealthSpendPub: null,
+    stealthScanPriv: null,
+    stealthScanPub: null,
+    stealthCode: null,
+    trezor: true,
+  };
+  _profile = { type: 'trezor' };
+  _notifyListeners();
+  return { addr: bchAddr };
+}
+
 function _notifyListeners(): void {
   for (const cb of _listeners) { try { cb(_keys ? 'unlock' : 'disconnect', _keys); } catch {} }
 }
 
 function _wcSubEvents(client: any): void {
   client.on('session_delete', () => { _wcSession = null; _keys = null; _profile = null; localStorage.removeItem('00_wc_session'); _notifyListeners(); });
-  client.on('session_event', (args) => { if (args.params?.event?.name === 'addressesChanged' && _keys) { _keys.bchAddr = args.params.event.data[0]; _keys.hash160 = cashAddrToHash20(_keys.bchAddr); _notifyListeners(); } });
+  client.on('session_event', (args: any) => { if (args.params?.event?.name === 'addressesChanged' && _keys) { _keys.bchAddr = args.params.event.data[0]; _keys.hash160 = _cashAddrToHash20Safe(_keys.bchAddr); _notifyListeners(); } });
 }
 
 export function lock() {

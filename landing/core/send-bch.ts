@@ -134,7 +134,7 @@ export async function sendBch({ toAddress, amountSats, feeRate, utxos, privKey, 
   const change = total - amountSats - fee;
   const outputs = [{ value: amountSats, script: toScript }];
   if (opReturnOutput) outputs.push(opReturnOutput);
-  if (change >= 546) {
+  if (change >= 546 && changeHash160) {
     const changeScript = p2pkhScript(changeHash160);
     outputs.push({ value: change, script: changeScript });
   }

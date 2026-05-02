@@ -11,7 +11,7 @@ const RPC = '/sol-rpc/';
 const SYSTEM_PROGRAM = new Uint8Array(32); // 11111111111111111111111111111111 = all zeros in bytes
 
 /* ── Helpers ── */
-function concat(...arrs) {
+function concat(...arrs: Uint8Array[]): Uint8Array {
   const len = arrs.reduce((s, a) => s + a.length, 0);
   const r = new Uint8Array(len);
   let off = 0;
@@ -24,7 +24,7 @@ const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const B58MAP = new Uint8Array(128);
 for (let i = 0; i < B58.length; i++) B58MAP[B58.charCodeAt(i)] = i;
 
-function base58Encode(bytes) {
+function base58Encode(bytes: Uint8Array): string {
   let n = 0n;
   for (const b of bytes) n = n * 256n + BigInt(b);
   let str = '';
@@ -33,7 +33,7 @@ function base58Encode(bytes) {
   return str || '1';
 }
 
-function base58Decode(str) {
+function base58Decode(str: string): Uint8Array {
   let n = 0n;
   for (const c of str) {
     const i = B58MAP[c.charCodeAt(0)];
@@ -55,7 +55,7 @@ function base58Decode(str) {
 }
 
 /* ── Compact array encoding (Solana varint) ── */
-function encodeCompactU16(len) {
+function encodeCompactU16(len: number): Uint8Array {
   if (len < 0x80) return new Uint8Array([len]);
   if (len < 0x4000) return new Uint8Array([
     (len & 0x7f) | 0x80,
@@ -69,7 +69,7 @@ function encodeCompactU16(len) {
 }
 
 /* ── Little-endian uint64 ── */
-function leU64(n) {
+function leU64(n: number): Uint8Array {
   const buf = new ArrayBuffer(8);
   const view = new DataView(buf);
   const bn = BigInt(n);
@@ -79,7 +79,7 @@ function leU64(n) {
 }
 
 /* ── RPC call helper ── */
-async function rpc(method, params = []) {
+async function rpc(method: string, params: unknown[] = []): Promise<any> {
   const resp = await fetch(RPC, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -91,7 +91,7 @@ async function rpc(method, params = []) {
 }
 
 /* ── Build, sign, and broadcast a native SOL transfer ── */
-export async function sendSol({ toAddress, amountLamports, privKey32 }) {
+export async function sendSol({ toAddress, amountLamports, privKey32 }: { toAddress: string; amountLamports: number; privKey32: Uint8Array }) {
   const pubKey = ed25519.getPublicKey(privKey32.slice(0, 32));
   const toPubKey = base58Decode(toAddress);
   if (toPubKey.length !== 32) throw new Error('Invalid destination address');

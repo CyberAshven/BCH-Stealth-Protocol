@@ -18,14 +18,14 @@ function u64LE(v: number): Uint8Array { const b = new Uint8Array(8); const lo=v&
 function varint(v: number): Uint8Array { if (v < 0xfd) return new Uint8Array([v]); const b = new Uint8Array(3); b[0]=0xfd; b[1]=v&0xff; b[2]=(v>>8)&0xff; return b; }
 
 /* ── P2PKH script: OP_DUP OP_HASH160 <20> hash160 OP_EQUALVERIFY OP_CHECKSIG ── */
-function p2pkhScript(hash160) {
+function p2pkhScript(hash160: Uint8Array): Uint8Array {
   return new Uint8Array([0x76, 0xa9, 0x14, ...hash160, 0x88, 0xac]);
 }
 
 /* ── Base58Check ── */
 const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
-function base58CheckDecode(addr) {
+function base58CheckDecode(addr: string): Uint8Array {
   let n = 0n;
   for (const c of addr) { const i = B58.indexOf(c); if (i < 0) throw new Error('Invalid base58'); n = n * 58n + BigInt(i); }
   let hex = n.toString(16);
@@ -35,7 +35,7 @@ function base58CheckDecode(addr) {
   return h2b(hex.slice(2, 42)); // return hash160 (skip version byte)
 }
 
-function base58CheckEncode(versionByte, hash160) {
+function base58CheckEncode(versionByte: number, hash160: Uint8Array): string {
   const payload = new Uint8Array([versionByte, ...hash160]);
   const checksum = sha256(sha256(payload)).slice(0, 4);
   const full = concat(payload, checksum);

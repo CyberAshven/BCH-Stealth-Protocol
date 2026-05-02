@@ -122,6 +122,7 @@ function deriveStealthSendAddr(recipScanPub, recipSpendPub, senderPrivKeys, outp
     const outpoint = concat(txidLE, _u32LE(vout));
     if (!smallest || _compareBytes(outpoint, smallest) < 0) smallest = outpoint;
   }
+  if (!smallest) throw new Error("No outpoints provided for stealth address computation");
   const input_hash = sha256(concat(smallest, A_sum));
   const input_hash_big = BigInt("0x" + b2h(input_hash)) % N_SECP;
   const tweaked_a = a_sum * input_hash_big % N_SECP;

@@ -4,7 +4,7 @@
 
 type NostrFilter = { ids?: string[]; authors?: string[]; kinds?: number[]; since?: number; until?: number; [key: string]: unknown };
 
-type RelayState = { ws: WebSocket | null; connected: boolean; reconnectTimer: ReturnType<typeof setTimeout> | null; connectTimer: ReturnType<typeof setTimeout> | null };
+type RelayState = { ws: WebSocket | null; connected: boolean; reconnectTimer: ReturnType<typeof setTimeout> | undefined; connectTimer: ReturnType<typeof setTimeout> | undefined };
 type SubState = { _portId: number; filters: NostrFilter[]; relaySubId: string };
 type NostrEvent = Record<string, unknown>;
 
@@ -34,7 +34,7 @@ function addSeen(id: string): void {
 function connectRelay(url: string): void {
   if (relays[url] && relays[url].ws) return; // already connected/connecting
 
-  const r: RelayState = relays[url] || { ws: null, connected: false, connectTimer: null, reconnectTimer: null };
+  const r: RelayState = relays[url] || { ws: null, connected: false, connectTimer: undefined, reconnectTimer: undefined };
   relays[url] = r;
 
   try {
@@ -213,7 +213,7 @@ function publishEvent(event: NostrEvent): void {
     if (msg.type === 'init') {
       // Set relay list and connect (only if we don't already have relays)
       if (msg.relays && msg.relays.length) {
-        const newUrls = msg.relays.filter(u => !relayUrls.includes(u));
+        const newUrls = msg.relays.filter((u: string) => !relayUrls.includes(u));
         if (relayUrls.length === 0) {
           relayUrls = msg.relays;
           for (const url of relayUrls) connectRelay(url);

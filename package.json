@@ -2,6 +2,7 @@
   "name": "bch-stealth-wallet",
   "version": "1.0.0",
   "private": true,
+  "main": "desktop/main.js",
   "scripts": {
     "tsc:check": "tsc --noEmit",
     "build:desktop:main": "esbuild desktop/main.ts --bundle --platform=node --target=node18 --external:electron --format=cjs --outfile=desktop/main.js",

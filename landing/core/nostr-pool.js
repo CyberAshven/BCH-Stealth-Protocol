@@ -17,7 +17,7 @@ function addSeen(id) {
 }
 function connectRelay(url) {
   if (relays[url] && relays[url].ws) return;
-  const r = relays[url] || { ws: null, connected: false, connectTimer: null, reconnectTimer: null };
+  const r = relays[url] || { ws: null, connected: false, connectTimer: void 0, reconnectTimer: void 0 };
   relays[url] = r;
   try {
     const ws = new WebSocket(url);

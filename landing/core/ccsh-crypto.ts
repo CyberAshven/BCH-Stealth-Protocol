@@ -284,7 +284,7 @@ function packV2(pkt: CcshPacket): Uint8Array {
   const c = pkt.ciphertext_chunk;
   return concat(
     CCSH_MAGIC,
-    new Uint8Array([CCSH_V2, pkt.msg_type, pkt.flags || FLAG_SPLIT]),
+    new Uint8Array([CCSH_V2, pkt.msg_type ?? 0, pkt.flags ?? FLAG_SPLIT]),
     pkt.msg_id, pkt.sender_pub,
     new Uint8Array([(pkt.chunk_index >> 8) & 0xff, pkt.chunk_index & 0xff]),
     new Uint8Array([(pkt.chunk_total >> 8) & 0xff, pkt.chunk_total & 0xff]),

@@ -95,6 +95,7 @@ async function boot() {
     } else if (event === "lock" || event === "disconnect") {
       balanceService.stop();
       if (window._shellRefreshAuth) window._shellRefreshAuth();
+      router.navigate("auth");
     }
   });
   if (unlocked && window._shellRefreshAuth) window._shellRefreshAuth();

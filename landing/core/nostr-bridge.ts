@@ -41,7 +41,7 @@ const _fbSeen = new Set<string>();
 function _fbConnect(url: string): void {
   const existing = _fbRelays[url];
   if (existing?.ws && (existing.ws.readyState === 0 || existing.ws.readyState === 1)) return; // connecting or open
-  const r = { ws: null, connected: false };
+  const r: RelayEntry = { ws: null, connected: false };
   _fbRelays[url] = r;
   try {
     const ws = new WebSocket(url);
@@ -164,7 +164,7 @@ export function nostrSubscribe(filters: unknown[], callback: SubCallback): Promi
     const clientSubId = ++_clientSubId;
     return new Promise(resolve => {
       _pendingSubs.set(clientSubId, { resolve, callback });
-      _port.postMessage({ type: 'subscribe', filters, clientSubId });
+      _port!.postMessage({ type: 'subscribe', filters, clientSubId });
     });
   }
   return Promise.resolve(null);
@@ -173,13 +173,13 @@ export function nostrSubscribe(filters: unknown[], callback: SubCallback): Promi
 export function nostrUnsubscribe(subId: string | null | undefined): void {
   if (!subId) return;
   if (_mode === 'fallback') { _fbUnsubscribe(subId); return; }
-  if (_mode === 'worker') { _activeSubs.delete(subId); _port.postMessage({ type: 'unsubscribe', subId }); }
+  if (_mode === 'worker') { _activeSubs.delete(subId); _port!.postMessage({ type: 'unsubscribe', subId }); }
 }
 
 export function nostrPublish(event: NostrEvent, onOk?: OkCallback): void {
   if (onOk && event.id) _okCallbacks.set(event.id as string, onOk);
   if (_mode === 'fallback') { _fbPublish(event); return; }
-  if (_mode === 'worker') { _port.postMessage({ type: 'publish', event }); }
+  if (_mode === 'worker') { _port!.postMessage({ type: 'publish', event }); }
 }
 
 export function nostrOnStatus(callback: StatusCallback): () => boolean {
@@ -198,7 +198,7 @@ export function nostrUpdateRelays(relays: string[]): void {
     _fbInit(relays);
     return;
   }
-  if (_mode === 'worker') { _port.postMessage({ type: 'updateRelays', relays }); }
+  if (_mode === 'worker') { _port!.postMessage({ type: 'updateRelays', relays }); }
 }
 
 export function nostrIsConnected(): boolean { return _lastStatus.connected; }

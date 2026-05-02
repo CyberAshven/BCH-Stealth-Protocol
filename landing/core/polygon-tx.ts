@@ -205,28 +205,28 @@ export function getAddress(privKeyHex: string): string {
    ══════════════════════════════════════════ */
 
 /* ── Check ERC20 allowance ── */
-export async function checkAllowance(token, owner, spender) {
+export async function checkAllowance(token: string, owner: string, spender: string) {
   const data = encodeAllowance(owner, spender);
   const result = await rpc('eth_call', [{ to: token, data }, 'latest']);
   return BigInt(result || '0x0');
 }
 
 /* ── Check ERC1155 approval ── */
-export async function checkApprovalForAll(token, owner, operator) {
+export async function checkApprovalForAll(token: string, owner: string, operator: string) {
   const data = encodeIsApprovedForAll(owner, operator);
   const result = await rpc('eth_call', [{ to: token, data }, 'latest']);
   return BigInt(result || '0x0') > 0n;
 }
 
 /* ── Check ERC20 balance ── */
-export async function checkBalance(token, owner) {
+export async function checkBalance(token: string, owner: string) {
   const data = encodeBalanceOf(owner);
   const result = await rpc('eth_call', [{ to: token, data }, 'latest']);
   return BigInt(result || '0x0');
 }
 
 /* ── Get native POL balance ── */
-export async function getPolBalance(addr) {
+export async function getPolBalance(addr: string) {
   const result = await rpc('eth_getBalance', [addr, 'latest']);
   return BigInt(result || '0x0');
 }
