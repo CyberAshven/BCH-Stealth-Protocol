@@ -1,4 +1,5 @@
 (() => {
+  const sw = globalThis;
   const CACHE = "bch-stealth-wallet-v506";
   const APP_SHELL = [
     "/",
@@ -41,20 +42,20 @@
     "fonts.googleapis.com",
     "fonts.gstatic.com"
   ];
-  self.addEventListener("install", (e) => {
+  sw.addEventListener("install", (e) => {
     e.waitUntil(
       caches.open(CACHE).then((c) => Promise.all(
         APP_SHELL.map(
           (url) => fetch(url, { cache: "no-store" }).then((r) => c.put(url, r))
         )
-      )).then(() => self.skipWaiting())
+      )).then(() => sw.skipWaiting())
     );
   });
-  self.addEventListener("activate", (e) => {
+  sw.addEventListener("activate", (e) => {
     e.waitUntil(
       caches.keys().then((keys) => Promise.all(
         keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
-      )).then(() => self.clients.claim())
+      )).then(() => sw.clients.claim())
     );
   });
   const COI_PAGES = ["/swap-xmr.html", "/swap.html"];
@@ -68,7 +69,7 @@
       headers
     });
   }
-  self.addEventListener("fetch", (e) => {
+  sw.addEventListener("fetch", (e) => {
     const url = e.request.url;
     if (e.request.method !== "GET") return;
     if (url.startsWith("chrome-extension")) return;
@@ -110,11 +111,11 @@
       }
     }
   });
-  self.addEventListener("push", (e) => {
+  sw.addEventListener("push", (e) => {
     if (!e.data) return;
     const { title = "BCH Stealth Wallet", body = "", url = "/" } = e.data.json();
     e.waitUntil(
-      self.registration.showNotification(title, {
+      sw.registration.showNotification(title, {
         body,
         icon: "/icons/icon-192.png",
         badge: "/icons/icon-192.png",
@@ -122,8 +123,8 @@
       })
     );
   });
-  self.addEventListener("notificationclick", (e) => {
+  sw.addEventListener("notificationclick", (e) => {
     e.notification.close();
-    e.waitUntil(clients.openWindow(e.notification.data?.url || "/"));
+    e.waitUntil(sw.clients.openWindow(e.notification.data?.url || "/"));
   });
 })();

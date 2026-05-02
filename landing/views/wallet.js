@@ -1989,7 +1989,14 @@ async function _doStealthSpend() {
     const firstPriv = stealthKeyMap[utxos[0].addr];
     if (!firstPriv) throw new Error("Missing stealth private key");
     const keys = auth.getKeys();
-    const changeHash160 = rip(sha(secp256k1.getPublicKey(keys.privKey, true)));
+    const { deriveStealthChange, saveStealthUtxo: saveStealthUtxoFn } = await import("../core/stealth.js");
+    const selfChange = deriveStealthChange(firstPriv, keys, utxos[0]);
+    let changeHash160;
+    if (selfChange) {
+      changeHash160 = rip(sha(selfChange.pub));
+    } else {
+      changeHash160 = rip(sha(secp256k1.getPublicKey(keys.privKey, true)));
+    }
     const result = await sendBch({
       toAddress: addr,
       amountSats: amtSats,
@@ -2000,6 +2007,9 @@ async function _doStealthSpend() {
       changeHash160,
       hdGetKey: stealthGetKey
     });
+    if (selfChange && result.change >= 546) {
+      saveStealthUtxoFn(selfChange.addr, selfChange.priv, selfChange.pub, "self-change");
+    }
     const spentAddrs = new Set(utxos.filter((u) => u.value > 0).map((u) => u.addr));
     const updatedSaved = saved.map((su) => spentAddrs.has(su.addr) ? { ...su, spent: true } : su);
     localStorage.setItem("00stealth_utxos", JSON.stringify(updatedSaved));

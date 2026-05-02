@@ -1,5 +1,4 @@
-// @ts-nocheck
-// 0penw0rld WS Bridge — thin client for ws-shared.js SharedWorker
+﻿// 0penw0rld WS Bridge â€” thin client for ws-shared.js SharedWorker
 // Include BEFORE page inline scripts. Provides global _fvCall/_btcCall API.
 // Falls back gracefully if SharedWorker not supported (iOS Safari).
 
@@ -10,16 +9,16 @@
   }
   window._wsSharedWorkerAvailable = true;
 
-  // Resolve path relative to current page — works in both browser and Electron (file:// protocol)
+  // Resolve path relative to current page â€” works in both browser and Electron (file:// protocol)
   var _wsUrl = typeof location !== 'undefined' ? new URL('ws-shared.js', location.href).href : '/ws-shared.js';
   var worker = new SharedWorker(_wsUrl, { name: '00-electrum' });
   var port = worker.port;
   port.start();
 
-  var _pending = {};   // id → {resolve, reject, timer}
+  var _pending = {};   // id â†’ {resolve, reject, timer}
   var _reqId = 0;
-  var _subHandlers = {}; // "chain:method:param0" → [callback, ...]
-  var _statusHandlers = {}; // "chain" → [callback, ...]
+  var _subHandlers = {}; // "chain:method:param0" â†’ [callback, ...]
+  var _statusHandlers = {}; // "chain" â†’ [callback, ...]
   var _connected = { bch: false, btc: false };
   var _servers = { bch: '', btc: '' };
   var _connectWaiters = { bch: [], btc: [] };
@@ -73,7 +72,7 @@
     }
   };
 
-  // ── Generic RPC call ──
+  // â”€â”€ Generic RPC call â”€â”€
   function makeCall(chain, method, params) {
     return new Promise(function(resolve, reject) {
       var id = ++_reqId;
@@ -86,27 +85,27 @@
     });
   }
 
-  // ── Connect waiters ──
+  // â”€â”€ Connect waiters â”€â”€
   function waitConnect(chain) {
-    return new Promise(function(resolve) {
+    return new Promise<void>(function(resolve) {
       if (_connected[chain]) { resolve(); return; }
       _connectWaiters[chain].push(resolve);
     });
   }
 
-  // ── Public API — BCH ──
+  // â”€â”€ Public API â€” BCH â”€â”€
   window._fvCall = function(method, params) { return makeCall('bch', method, params); };
   window._fvConnect = function() { return waitConnect('bch'); };
   window.fulcrumCall = window._fvCall;
   window.fulcrumConnect = window._fvConnect;
   window.bchCall = window._fvCall;
 
-  // ── Public API — BTC ──
+  // â”€â”€ Public API â€” BTC â”€â”€
   window._btcCall = function(method, params) { return makeCall('btc', method, params); };
   window._btcConnect = function() { return waitConnect('btc'); };
   window.btcCall = window._btcCall;
 
-  // ── Subscriptions ──
+  // â”€â”€ Subscriptions â”€â”€
   window._wsSubscribe = function(chain, method, params, callback) {
     var param0 = params && params[0] !== undefined ? params[0] : '*';
     var key = chain + ':' + method + ':' + param0;
@@ -115,7 +114,7 @@
     port.postMessage({ type: 'subscribe', chain: chain, method: method, params: params });
   };
 
-  // ── Status ──
+  // â”€â”€ Status â”€â”€
   window._wsOnStatus = function(chain, callback) {
     if (!_statusHandlers[chain]) _statusHandlers[chain] = [];
     _statusHandlers[chain].push(callback);
@@ -123,12 +122,12 @@
     callback(_connected[chain], _servers[chain]);
   };
 
-  // ── Server config update ──
+  // â”€â”€ Server config update â”€â”€
   window._wsUpdateServers = function(chain, servers) {
     port.postMessage({ type: 'updateServers', chain: chain, servers: servers });
   };
 
-  // ── Status query ──
+  // â”€â”€ Status query â”€â”€
   window._wsStatus = function(chain) {
     return { connected: _connected[chain], server: _servers[chain] };
   };

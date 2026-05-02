@@ -1,5 +1,6 @@
-// @ts-nocheck
-// BCH Stealth Wallet — Service Worker
+﻿/// <reference lib="webworker" />
+// BCH Stealth Wallet â€” Service Worker
+const sw = globalThis as unknown as ServiceWorkerGlobalScope;
 const CACHE = 'bch-stealth-wallet-v506';
 
 const APP_SHELL = [
@@ -26,7 +27,7 @@ const APP_SHELL = [
   '/icons/usdt.png',
 ];
 
-// External APIs — always network-first
+// External APIs â€” always network-first
 const NETWORK_FIRST = [
   'midgard.ninerealms.com',
   'thornode.ninerealms.com',
@@ -46,8 +47,8 @@ const NETWORK_FIRST = [
   'fonts.gstatic.com',
 ];
 
-// ── Install ──────────────────────────────────────
-self.addEventListener('install', (e: ExtendableEvent) => {
+// â”€â”€ Install â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+sw.addEventListener('install', (e: ExtendableEvent) => {
   e.waitUntil(
     caches.open(CACHE)
       .then((c: Cache) => Promise.all(
@@ -55,18 +56,18 @@ self.addEventListener('install', (e: ExtendableEvent) => {
           fetch(url, { cache: 'no-store' }).then((r: Response) => c.put(url, r))
         )
       ))
-      .then(() => self.skipWaiting())
+      .then(() => sw.skipWaiting())
   );
 });
 
-// ── Activate — purge old caches ──────────────────
-self.addEventListener('activate', (e: ExtendableEvent) => {
+// â”€â”€ Activate â€” purge old caches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+sw.addEventListener('activate', (e: ExtendableEvent) => {
   e.waitUntil(
     caches.keys()
       .then((keys: string[]) => Promise.all(
         keys.filter((k: string) => k !== CACHE).map((k: string) => caches.delete(k))
       ))
-      .then(() => self.clients.claim())
+      .then(() => sw.clients.claim())
   );
 });
 
@@ -84,8 +85,8 @@ function addCoiHeaders(response: Response): Response {
   });
 }
 
-// ── Fetch ────────────────────────────────────────
-self.addEventListener('fetch', (e: FetchEvent) => {
+// â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+sw.addEventListener('fetch', (e: FetchEvent) => {
   const url = e.request.url;
 
   // Skip non-GET, chrome-extension, and WebSocket
@@ -99,7 +100,7 @@ self.addEventListener('fetch', (e: FetchEvent) => {
   const isNetworkFirst = NETWORK_FIRST.some(h => url.includes(h));
 
   if (isNetworkFirst) {
-    // Network first — live data (prices, pools, relays)
+    // Network first â€” live data (prices, pools, relays)
     e.respondWith(
       fetch(e.request)
         .then((r: Response) => needsCoi ? addCoiHeaders(r) : r)
@@ -122,7 +123,7 @@ self.addEventListener('fetch', (e: FetchEvent) => {
         })
       );
     } else {
-      // Cache first — static assets (icons, manifest, CSS, JS)
+      // Cache first â€” static assets (icons, manifest, CSS, JS)
       e.respondWith(
         caches.match(e.request, { ignoreSearch: true }).then(cached => {
           if (cached) return needsCoi ? addCoiHeaders(cached) : cached;
@@ -137,12 +138,12 @@ self.addEventListener('fetch', (e: FetchEvent) => {
   }
 });
 
-// ── Push notifications (future) ──────────────────
-self.addEventListener('push', (e: PushEvent) => {
+// â”€â”€ Push notifications (future) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+sw.addEventListener('push', (e: PushEvent) => {
   if (!e.data) return;
   const { title = 'BCH Stealth Wallet', body = '', url = '/' } = e.data.json();
   e.waitUntil(
-    self.registration.showNotification(title, {
+    sw.registration.showNotification(title, {
       body,
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
@@ -151,7 +152,7 @@ self.addEventListener('push', (e: PushEvent) => {
   );
 });
 
-self.addEventListener('notificationclick', (e: NotificationEvent) => {
+sw.addEventListener('notificationclick', (e: NotificationEvent) => {
   e.notification.close();
-  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
+  e.waitUntil(sw.clients.openWindow(e.notification.data?.url || '/'));
 });

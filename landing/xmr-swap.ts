@@ -1,7 +1,6 @@
-// @ts-nocheck
-/**
+﻿/**
  * 00-Protocol: XMR Atomic Swap Engine
- * Pure JavaScript — BCH ↔ XMR cross-chain atomic swaps
+ * Pure JavaScript â€” BCH â†” XMR cross-chain atomic swaps
  *
  * Protocol (Gugger/COMIT adapted for BCH):
  *
@@ -38,19 +37,19 @@ import {
   secpKeyToEdKey, edKeyToSecpKey,
   serializeAdaptorSig, deserializeAdaptorSig,
   serializeDLEQProof, deserializeDLEQProof
-} from './xmr-swap-crypto.js?v=5';
+} from './xmr-swap-crypto.js';
 
 import { secp256k1 } from './lib/noble-curves.js';
 import { ed25519 }   from './lib/noble-curves.js';
 import { ripemd160 }  from './lib/noble-hashes.js';
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CONSTANTS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 // Nostr event kinds for XMR swap (offset from BTC swap kinds)
-const NOSTR_KIND_XMR_OFFER   = 4250;  // public offer (regular range — stored by relays)
-const NOSTR_KIND_XMR_TAKE    = 4251;  // taker → maker (encrypted)
+const NOSTR_KIND_XMR_OFFER   = 4250;  // public offer (regular range â€” stored by relays)
+const NOSTR_KIND_XMR_TAKE    = 4251;  // taker â†’ maker (encrypted)
 const NOSTR_KIND_XMR_KEYS    = 4252;  // key exchange (encrypted)
 const NOSTR_KIND_XMR_LOCKED  = 4253;  // BCH locked notification (encrypted)
 const NOSTR_KIND_XMR_XLOCKED = 4254;  // XMR locked notification (encrypted)
@@ -67,9 +66,9 @@ const MIN_XMR_PICONERO = 100000000n; // 0.0001 XMR minimum
 const XMR_MAINNET = 18;  // mainnet address prefix
 const XMR_STAGENET = 24; // stagenet address prefix
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SWAP STATES
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 const STATE = {
   // Bob (has BCH, wants XMR)
@@ -99,9 +98,9 @@ const STATE = {
   EXPIRED: 'EXPIRED'
 };
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BCH SCRIPT HELPERS
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    The BCH lock uses OP_CHECKDATASIG to verify Bob's adaptor signature.
    Alice claims by providing the decrypted adaptor sig.
@@ -202,9 +201,9 @@ function swapMessage(swapId, aliceSecpPub, bobSecpPub, bchAmount, xmrAmount) {
   ));
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MONERO SHARED ADDRESS
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    The XMR lock address is computed from both parties' ed25519 keys:
    - Shared spend key: P_alice_ed + P_bob_ed (point addition)
@@ -256,11 +255,32 @@ function computeFullXmrSpendKey(aliceSecret, bobSecret) {
   return bigIntToBytes32LE(fullSecret);
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SWAP STATE MACHINE
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 class XmrSwap {
+  role: any;
+  state: any;
+  ts: number;
+  swapId: any;
+  bchAmount: any;
+  xmrAmount: any;
+  counterpartyNostrPub: any;
+  myKeys: any;
+  theirKeys: any;
+  sharedXmrAddress: any;
+  bchLockScript: any;
+  bchLockTxid: any;
+  bchLockVout: any;
+  bchLocktime: any;
+  xmrLockTxid: any;
+  adaptorSig: any;
+  swapMsg: any;
+  recoveredSecret: any;
+  steps: any;
+  currentStep: number;
+
   constructor(role, params) {
     this.role = role; // 'alice' or 'bob'
     this.state = role === 'bob' ? STATE.BOB_INIT : STATE.ALICE_INIT;
@@ -303,7 +323,7 @@ class XmrSwap {
     this.currentStep = 0;
   }
 
-  /* ── Step 1: Generate and exchange keys ── */
+  /* â”€â”€ Step 1: Generate and exchange keys â”€â”€ */
   generateKeys() {
     this.myKeys = generateCrossCurveKeypair();
     this.currentStep = 1;
@@ -351,7 +371,7 @@ class XmrSwap {
     return true;
   }
 
-  /* ── Step 2 (Bob): Lock BCH ── */
+  /* â”€â”€ Step 2 (Bob): Lock BCH â”€â”€ */
   prepareBchLock(currentBlockHeight) {
     if (this.role !== 'bob') throw new Error('only Bob locks BCH');
     if (!this.myKeys || !this.theirKeys) throw new Error('keys not exchanged');
@@ -380,7 +400,7 @@ class XmrSwap {
     this.bchLockVout = vout;
   }
 
-  /* ── Step 2 (Alice): Verify BCH lock ── */
+  /* â”€â”€ Step 2 (Alice): Verify BCH lock â”€â”€ */
   verifyBchLock(txHex, expectedAmount, expectedLocktime) {
     if (this.role !== 'alice') throw new Error('only Alice verifies BCH lock');
 
@@ -390,7 +410,7 @@ class XmrSwap {
     const expectedP2sh = p2shScript(expectedScript);
 
     // Parse TX and find matching output
-    // (simplified — in production, use full TX parser)
+    // (simplified â€” in production, use full TX parser)
     const txBytes = h2b(txHex);
     const expectedP2shHex = b2h(expectedP2sh);
 
@@ -409,7 +429,7 @@ class XmrSwap {
     return true;
   }
 
-  /* ── Step 3 (Alice): Lock XMR ── */
+  /* â”€â”€ Step 3 (Alice): Lock XMR â”€â”€ */
   prepareXmrLock() {
     if (this.role !== 'alice') throw new Error('only Alice locks XMR');
     if (!this.sharedXmrAddress) throw new Error('shared address not computed');
@@ -429,7 +449,7 @@ class XmrSwap {
     this.xmrLockTxid = txid;
   }
 
-  /* ── Step 3 (Bob): Verify XMR lock ── */
+  /* â”€â”€ Step 3 (Bob): Verify XMR lock â”€â”€ */
   verifyXmrLock(xmrTxConfirmed) {
     if (this.role !== 'bob') throw new Error('only Bob verifies XMR lock');
     // In practice, Bob uses the view key to scan the XMR blockchain
@@ -441,7 +461,7 @@ class XmrSwap {
     return true;
   }
 
-  /* ── Step 4 (Bob): Create and send adaptor signature ── */
+  /* â”€â”€ Step 4 (Bob): Create and send adaptor signature â”€â”€ */
   createAdaptorSig() {
     if (this.role !== 'bob') throw new Error('only Bob creates adaptor sig');
     if (!this.swapMsg || !this.myKeys || !this.theirKeys) {
@@ -463,7 +483,7 @@ class XmrSwap {
     return serializeAdaptorSig(adaptorSig);
   }
 
-  /* ── Step 4 (Alice): Receive and verify adaptor sig ── */
+  /* â”€â”€ Step 4 (Alice): Receive and verify adaptor sig â”€â”€ */
   receiveAdaptorSig(adaptorSigJson) {
     if (this.role !== 'alice') throw new Error('only Alice receives adaptor sig');
 
@@ -472,7 +492,7 @@ class XmrSwap {
     // Verify adaptor sig: valid pre-sig from Bob, encrypted with Alice's key
     const valid = schnorrAdaptorVerify(
       this.theirKeys.secp.pub,  // Bob's pubkey (signer)
-      this.myKeys.secp.pub,     // Alice's pubkey (adaptor point) — wait, this is wrong
+      this.myKeys.secp.pub,     // Alice's pubkey (adaptor point) â€” wait, this is wrong
       this.swapMsg,
       adaptorSig
     );
@@ -491,7 +511,7 @@ class XmrSwap {
     return true;
   }
 
-  /* ── Step 5 (Alice): Decrypt adaptor sig and claim BCH ── */
+  /* â”€â”€ Step 5 (Alice): Decrypt adaptor sig and claim BCH â”€â”€ */
   decryptAndClaim() {
     if (this.role !== 'alice') throw new Error('only Alice claims BCH');
     if (!this.adaptorSig || !this.myKeys) throw new Error('missing adaptor sig');
@@ -541,7 +561,7 @@ class XmrSwap {
     );
   }
 
-  /* ── Step 6 (Bob): Recover Alice's secret from on-chain sig ── */
+  /* â”€â”€ Step 6 (Bob): Recover Alice's secret from on-chain sig â”€â”€ */
   recoverSecret(onChainSig64) {
     if (this.role !== 'bob') throw new Error('only Bob recovers');
     if (!this.adaptorSig) throw new Error('missing adaptor sig');
@@ -584,7 +604,7 @@ class XmrSwap {
     return this.recoveredSecret;
   }
 
-  /* ── Step 6 (Bob): Sweep XMR with combined key ── */
+  /* â”€â”€ Step 6 (Bob): Sweep XMR with combined key â”€â”€ */
   computeXmrSweepKey() {
     if (this.role !== 'bob') throw new Error('only Bob sweeps XMR');
     if (!this.recoveredSecret) throw new Error('secret not recovered');
@@ -611,7 +631,7 @@ class XmrSwap {
     };
   }
 
-  /* ── Serialization for persistence ── */
+  /* â”€â”€ Serialization for persistence â”€â”€ */
   serialize() {
     return JSON.stringify({
       role: this.role,
@@ -686,18 +706,18 @@ class XmrSwap {
   }
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    HELPERS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function pushData(data) {
   if (data.length <= 75) return concat(new Uint8Array([data.length]), data);
   if (data.length <= 255) return concat(new Uint8Array([0x4c, data.length]), data);
   return concat(new Uint8Array([0x4d, data.length & 0xff, (data.length >> 8) & 0xff]), data);
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    EXPORTS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 export {
   // Constants
   NOSTR_KIND_XMR_OFFER, NOSTR_KIND_XMR_TAKE, NOSTR_KIND_XMR_KEYS,

@@ -2019,9 +2019,17 @@ async function _doStealthSpend() {
     const firstPriv = stealthKeyMap[utxos[0].addr];
     if (!firstPriv) throw new Error('Missing stealth private key');
 
-    // Change goes back to main wallet (not stealth)
+    // Change goes to a fresh one-time stealth address for self (privacy-preserving)
     const keys = auth.getKeys();
-    const changeHash160 = rip(sha(secp256k1.getPublicKey(keys.privKey, true)));
+    const { deriveStealthChange, saveStealthUtxo: saveStealthUtxoFn } = await import('../core/stealth.js');
+    const selfChange = deriveStealthChange(firstPriv, keys, utxos[0]);
+    let changeHash160;
+    if (selfChange) {
+      changeHash160 = rip(sha(selfChange.pub));
+    } else {
+      // fallback: primary key hash (HD wallet required for stealth change)
+      changeHash160 = rip(sha(secp256k1.getPublicKey(keys.privKey, true)));
+    }
 
     const result = await sendBch({
       toAddress: addr,
@@ -2033,6 +2041,11 @@ async function _doStealthSpend() {
       changeHash160,
       hdGetKey: stealthGetKey,
     });
+
+    // Track self-stealth change UTXO so it can be spent later
+    if (selfChange && result.change >= 546) {
+      saveStealthUtxoFn(selfChange.addr, selfChange.priv, selfChange.pub, 'self-change');
+    }
 
     // Mark spent UTXOs
     const spentAddrs = new Set(utxos.filter(u => u.value > 0).map(u => u.addr));
@@ -2144,6 +2157,8 @@ async function _doStealthSend(coinId) {
     const { addr: stealthAddr } = deriveStealthSendAddr(scanPub, spendPub, allPrivKeys, allOutpoints);
 
     const { sendBch } = await import('../core/send-bch.js');
+
+    // Change goes to HD change address (inputs are HD UTXOs)
     const changeAddr = state.get('hdChangeAddr');
     let changeHash160;
     if (changeAddr) {

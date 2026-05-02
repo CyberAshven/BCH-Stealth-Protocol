@@ -1,5 +1,4 @@
-// @ts-nocheck
-/**
+﻿/**
  * 00-Protocol: XMR Atomic Swap Crypto Module
  * Pure JavaScript implementation using @noble/curves
  *
@@ -18,9 +17,9 @@ import { ed25519 }    from './lib/noble-curves.js';
 import { sha256 }     from './lib/noble-hashes.js';
 import { sha512 }     from './lib/noble-hashes.js';
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CONSTANTS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 // secp256k1 group order
 const N_SECP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
@@ -28,7 +27,7 @@ const N_SECP = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD036414
 const P_FIELD = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
 // ed25519 group order (aka "l" in Monero)
 const L_ED = 0x1000000000000000000000000000000014DEF9DEA2F79CD65812631A5CF5D3EDn;
-// Minimum of both orders — secrets must be < this for cross-curve DLEQ
+// Minimum of both orders â€” secrets must be < this for cross-curve DLEQ
 const N_MIN = L_ED < N_SECP ? L_ED : N_SECP; // L_ED is smaller (~2^252.6)
 
 // ed25519 base point
@@ -52,7 +51,7 @@ function modPow(base, exp, m) {
 
 /**
  * BCH Schnorr requires Jacobi(R.y, p) == 1
- * For secp256k1 (p ≡ 3 mod 4): Jacobi(y, p) = y^((p-1)/2) mod p
+ * For secp256k1 (p â‰¡ 3 mod 4): Jacobi(y, p) = y^((p-1)/2) mod p
  * Returns true if the point's y-coordinate has Jacobi symbol 1
  */
 function hasJacobi1(point) {
@@ -60,11 +59,11 @@ function hasJacobi1(point) {
   return modPow(y, (P_FIELD - 1n) / 2n, P_FIELD) === 1n;
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    HELPERS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function b2h(bytes) {
-  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (b: number) => b.toString(16).padStart(2, '0')).join('');
 }
 function h2b(hex) {
   const u = new Uint8Array(hex.length / 2);
@@ -99,11 +98,11 @@ function bigIntToBytes32LE(n) {
 }
 
 // Modular arithmetic
-function mod(a, m) {
+function mod(a: bigint, m: bigint) {
   const r = a % m;
   return r < 0n ? r + m : r;
 }
-function modInv(a, m) {
+function modInv(a: bigint, m: bigint) {
   let [old_r, r] = [a, m];
   let [old_s, s] = [1n, 0n];
   while (r !== 0n) {
@@ -114,9 +113,9 @@ function modInv(a, m) {
   return mod(old_s, m);
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    1. Ed25519 KEY MANAGEMENT (Monero keys)
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Monero uses:
    - Private spend key: 32-byte scalar (little-endian, reduced mod l)
@@ -141,14 +140,14 @@ const KECCAK_ROTC = [1,3,6,10,15,21,28,36,45,55,2,14,27,41,56,8,25,43,62,18,39,6
 const KECCAK_PILN = [10,7,11,17,18,3,5,16,8,21,24,4,15,23,19,13,12,2,20,14,22,9,6,1];
 const MASK64 = 0xFFFFFFFFFFFFFFFFn;
 
-function rotl64(x, n) {
+function rotl64(x: bigint, n: number) {
   return ((x << BigInt(n)) | (x >> BigInt(64 - n))) & MASK64;
 }
 
-function keccakF1600(state) {
+function keccakF1600(state: bigint[]) {
   for (let round = 0; round < KECCAK_ROUNDS; round++) {
     // Theta
-    const C = new Array(5);
+    const C: bigint[] = new Array(5).fill(0n);
     for (let x = 0; x < 5; x++) C[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20];
     for (let x = 0; x < 5; x++) {
       const D = C[(x + 4) % 5] ^ rotl64(C[(x + 1) % 5], 1);
@@ -287,15 +286,15 @@ function xmrAddress(pubSpend, pubView, network = 18) {
   return xmrBase58Encode(concat(data, checksum));
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    2. ECDSA ADAPTOR SIGNATURES (secp256k1)
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    An adaptor signature is an "encrypted" ECDSA signature.
-   - encrypted_sign(privKey, adaptorPoint, msgHash) → adaptorSig
-   - verify_adaptor(pubKey, adaptorPoint, msgHash, adaptorSig) → bool
-   - decrypt_adaptor(adaptorSig, adaptorSecret) → realSig
-   - recover_secret(adaptorSig, realSig) → adaptorSecret
+   - encrypted_sign(privKey, adaptorPoint, msgHash) â†’ adaptorSig
+   - verify_adaptor(pubKey, adaptorPoint, msgHash, adaptorSig) â†’ bool
+   - decrypt_adaptor(adaptorSig, adaptorSecret) â†’ realSig
+   - recover_secret(adaptorSig, realSig) â†’ adaptorSecret
 
    This allows: when Alice decrypts and publishes a signature,
    Bob can extract the adaptor secret from the diff.
@@ -328,7 +327,7 @@ function adaptorSign(privKey, adaptorPoint, msgHash) {
   const r = mod(R.x, N_SECP);
   if (r === 0n) throw new Error('invalid nonce');
 
-  // s' = k^-1 * (z + r*x) mod n — this is NOT a valid sig (because R includes T)
+  // s' = k^-1 * (z + r*x) mod n â€” this is NOT a valid sig (because R includes T)
   const s_hat = mod(kInv * (z + r * x), N_SECP);
   if (s_hat === 0n) throw new Error('invalid s_hat');
 
@@ -435,7 +434,7 @@ function adaptorDecrypt(adaptorSig, adaptorSecret) {
   //   k = nonce, R' = k*G
   //   R = R' + T
   //   r = R.x
-  //   s' = k^-1 * (z + r*x)  ← "pre-signature"
+  //   s' = k^-1 * (z + r*x)  â† "pre-signature"
   //
   // decrypt_signature:
   //   s = s' + t  (additive)
@@ -498,7 +497,7 @@ function adaptorRecover(adaptorSig, realSig) {
   let { s } = realSig;
 
   // Try both s and -s (due to low-S normalization)
-  let t = mod(s_hat - s, N_SECP);
+  let t = mod(BigInt(s_hat) - BigInt(s), N_SECP);
   // Verify t*G == T
   const T = secp256k1.ProjectivePoint.fromHex(adaptorSig.R);
   const Rprime = secp256k1.ProjectivePoint.fromHex(adaptorSig.Rprime);
@@ -561,9 +560,9 @@ function dleqVerifySecp(Q, proof) {
   }
 }
 
-/* ══════════════════════════════════════════
-   ADAPTOR SIGNATURE — CORRECTED CONSTRUCTION
-   ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   ADAPTOR SIGNATURE â€” CORRECTED CONSTRUCTION
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Using the "additive" adaptor signature scheme:
 
@@ -578,7 +577,7 @@ function dleqVerifySecp(Q, proof) {
    SIGN (with adaptor point T):
      1. Generate nonce k, compute R = k*G
      2. r = R.x mod n
-     3. s_hat = k^-1 * (z + r*x) mod n  ← standard ECDSA s-value
+     3. s_hat = k^-1 * (z + r*x) mod n  â† standard ECDSA s-value
      4. Publish (R, s_hat, T) as "pre-signature"
      5. This is NOT a valid ECDSA sig because the verifier also needs T
 
@@ -607,14 +606,14 @@ function dleqVerifySecp(Q, proof) {
      T = adaptor point
      R' = R + T  (combined nonce point)
      r' = R'.x mod n
-     s' = k^-1 * (m + r' * x) mod n  ← "pre-signature"
+     s' = k^-1 * (m + r' * x) mod n  â† "pre-signature"
 
    Verify pre-sig:
      Check s' * G == k^-1 * (m + r'*x) * G ... but verifier doesn't know k
      Check s' * R == m*G + r'*P  (standard ECDSA verification equation but with R not R')
      i.e., verify as if R was the nonce point, not R'
      This works because s' = k^-1 * (m + r'*x) and R = k*G
-     => s'^-1 * (m*G + r'*P) = s'^-1 * (m + r'*x) * G = k * G = R ✓
+     => s'^-1 * (m*G + r'*P) = s'^-1 * (m + r'*x) * G = k * G = R âœ“
 
    Decrypt:
      The real ECDSA sig should have nonce R' = (k+t)*G with r' = R'.x
@@ -635,7 +634,7 @@ function dleqVerifySecp(Q, proof) {
      R = k * G
      s_hat = k^-1 * (H(m) + R.x * x) mod n
      R_a = R + T  (for verification purposes)
-     return (R_a, s_hat)  ← "encrypted signature" / "pre-signature"
+     return (R_a, s_hat)  â† "encrypted signature" / "pre-signature"
 
    encrypted_verify(P, T, m, (R_a, s_hat)):
      R = R_a - T  (recover R from adaptor)
@@ -644,7 +643,7 @@ function dleqVerifySecp(Q, proof) {
    Actually, the construction from Aumayr et al. "Generalized Bitcoin-Compatible Channels":
 
    pSign(x, Y, m):     // x = privkey, Y = adaptor point
-     k ← random
+     k â† random
      R := k*G
      r := R.x mod n
      ~s := k^-1 * (H(m) + r*x) mod n
@@ -728,12 +727,12 @@ function dleqVerifySecp(Q, proof) {
    Since BCH supports Schnorr signatures natively, this is actually
    the better approach! BCH uses Schnorr for transaction signing.
    Let me implement Schnorr adaptor sigs instead.
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 // Rewrite using Schnorr adaptor signatures (cleaner, simpler, works with BCH)
 
 /**
- * Schnorr Adaptor Signature — BCH-compatible
+ * Schnorr Adaptor Signature â€” BCH-compatible
  *
  * BCH Schnorr (OP_CHECKDATASIG):
  *   e = SHA256(R.x_32bytes || P_compressed_33bytes || SHA256(msg))
@@ -749,7 +748,7 @@ function dleqVerifySecp(Q, proof) {
  *             AND R' == R + T
  *   Decrypt:  s = s_hat + t (add adaptor secret)
  *             Real sig = (R', s)
- *             Check: s*G - e*P = (k+e*x+t)*G - e*x*G = (k+t)*G = R+T = R' ✓
+ *             Check: s*G - e*P = (k+e*x+t)*G - e*x*G = (k+t)*G = R+T = R' âœ“
  *   Recover:  t = s - s_hat
  */
 
@@ -758,7 +757,7 @@ function bchSchnorrChallenge(Rx, PCompressed, msg) {
   return mod(bytesToBigInt(sha256(concat(
     bigIntToBytes32BE(Rx),   // 32-byte R.x (big-endian)
     PCompressed,             // 33-byte compressed pubkey
-    sha256(msg)              // SHA256(msg) — BCH OP_CHECKDATASIG hashes the message
+    sha256(msg)              // SHA256(msg) â€” BCH OP_CHECKDATASIG hashes the message
   ))), N_SECP);
 }
 
@@ -850,12 +849,12 @@ function schnorrAdaptorRecover(adaptorSig, realSig) {
   const { s } = realSig;
 
   // t = s - s_hat mod n
-  const t = mod(s - s_hat, N_SECP);
+  const t = mod(BigInt(s) - BigInt(s_hat), N_SECP);
   return bigIntToBytes32BE(t);
 }
 
 /**
- * Verify a "real" Schnorr signature (after decryption) — BCH-compatible
+ * Verify a "real" Schnorr signature (after decryption) â€” BCH-compatible
  */
 function schnorrVerify(pubKey, msg, sig) {
   try {
@@ -881,9 +880,9 @@ function schnorrVerify(pubKey, msg, sig) {
   }
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    3. CROSS-CURVE DLEQ PROOF
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Proves that the same 252-bit secret x satisfies both:
      P_secp = x * G_secp   (on secp256k1)
@@ -925,7 +924,7 @@ function crossCurveDLEQProve(x, P_secp, P_ed) {
   // reduces z mod each curve's order before scalar multiplication.
   // This works because n*G = O (identity) for any curve, so
   // (z mod n) * G = z * G for that curve's group order n.
-  // Since L_ED ≠ N_SECP, reducing z mod one order would break the other curve.
+  // Since L_ED â‰  N_SECP, reducing z mod one order would break the other curve.
 
   // Pick random k
   let k;
@@ -1008,9 +1007,9 @@ function crossCurveDLEQVerify(P_secp_bytes, P_ed_bytes, proof) {
   }
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    4. KEY CONVERSION (secp256k1 <-> ed25519)
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    The same 252-bit scalar can be interpreted on both curves.
    secp256k1 uses big-endian, ed25519 uses little-endian.
@@ -1041,7 +1040,7 @@ function edKeyToSecpKey(edPriv) {
  * Returns keys + DLEQ proof
  */
 function generateCrossCurveKeypair() {
-  // Generate secret < N_MIN (= L_ED ≈ 2^252.6)
+  // Generate secret < N_MIN (= L_ED â‰ˆ 2^252.6)
   let x;
   do {
     x = bytesToBigInt(rand(32));
@@ -1068,9 +1067,9 @@ function generateCrossCurveKeypair() {
   };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    5. SERIALIZATION
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 function serializeAdaptorSig(sig) {
   return JSON.stringify({
@@ -1127,9 +1126,9 @@ function deserializeCrossCurveKeys(json) {
   };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    EXPORTS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 export {
   // Constants

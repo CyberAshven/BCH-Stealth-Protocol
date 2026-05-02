@@ -1,8 +1,9 @@
-// @ts-nocheck
-// 0penw0rld SharedWorker — persistent Electrum WebSocket connections
+﻿// 0penw0rld SharedWorker â€” persistent Electrum WebSocket connections
 // Survives page navigations. One WS per chain shared across all tabs/pages.
 
-const chains = {};  // 'bch' | 'btc' → chain state
+(function() {
+
+const chains: Record<string, any> = {};  // 'bch' | 'btc' â†’ chain state
 let portId = 0;
 
 function initChain(name) {
@@ -14,9 +15,9 @@ function initChain(name) {
     servers: [],
     serverIdx: 0,
     reqId: 0,
-    pending: new Map(),     // wsReqId → {portId, clientReqId}
-    subscriptions: new Map(), // "method:param0" → Set<portId>
-    ports: new Map(),       // portId → MessagePort
+    pending: new Map(),     // wsReqId â†’ {portId, clientReqId}
+    subscriptions: new Map(), // "method:param0" â†’ Set<portId>
+    ports: new Map(),       // portId â†’ MessagePort
     connectTimer: null,
     reconnectTimer: null,
     queue: [],              // calls queued while connecting
@@ -24,7 +25,7 @@ function initChain(name) {
   return chains[name];
 }
 
-// ── Connect to Electrum server ──
+// â”€â”€ Connect to Electrum server â”€â”€
 function connect(name) {
   const c = chains[name];
   if (!c || !c.servers.length) return;
@@ -40,7 +41,7 @@ function connect(name) {
     const ws = new WebSocket(url);
     c.ws = ws;
 
-    // Timeout — 8s to connect
+    // Timeout â€” 8s to connect
     c.connectTimer = setTimeout(() => {
       if (!opened) { ws.close(); rotateAndReconnect(name); }
     }, 8000);
@@ -63,7 +64,7 @@ function connect(name) {
         const p = c.pending.get(msg.id);
         c.pending.delete(msg.id);
         if (p.portId === -1) {
-          // Handshake complete — connected
+          // Handshake complete â€” connected
           c.connected = true;
           broadcastStatus(name);
           resubscribeAll(name);
@@ -193,8 +194,8 @@ function sendCall(name, pid, clientReqId, method, params) {
   c.ws.send(JSON.stringify({ id: wid, method: method, params: params || [] }));
 }
 
-// ── Port management ──
-self.onconnect = function(e) {
+// â”€â”€ Port management â”€â”€
+(self as any).onconnect = function(e) {
   const port = e.ports[0];
   const pid = ++portId;
 
@@ -209,7 +210,7 @@ self.onconnect = function(e) {
         c.servers = msg.servers;
         connect(msg.chain);
       } else {
-        // Already connected or connecting — just send current status
+        // Already connected or connecting â€” just send current status
         port.postMessage({ type: 'status', chain: msg.chain, connected: c.connected, server: c.server });
       }
     }
@@ -270,4 +271,4 @@ function removePort(pid) {
     }
   }
 }
-
+})();

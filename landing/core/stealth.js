@@ -14,6 +14,57 @@ function _compareBytes(a, b) {
 function _u32LE(v) {
   return new Uint8Array([v & 255, v >> 8 & 255, v >> 16 & 255, v >> 24 & 255]);
 }
+function _scalarFromBytes(bytes) {
+  return BigInt("0x" + b2h(bytes));
+}
+function _scalarToBytes(scalar) {
+  return h2b((scalar % N_SECP).toString(16).padStart(64, "0"));
+}
+function _getOutpointBytes(txid, vout) {
+  const txidHex = typeof txid === "string" ? txid : b2h(txid);
+  return concat(h2b(txidHex).reverse(), _u32LE(vout || 0));
+}
+function _findSmallestOutpoint(outpoints) {
+  let smallest = null;
+  for (const op of outpoints) {
+    const outpoint = _getOutpointBytes(op.txid, op.vout);
+    if (!smallest || _compareBytes(outpoint, smallest) < 0) smallest = outpoint;
+  }
+  return smallest;
+}
+function _hashInputWeight(smallestOutpoint, pubkey) {
+  const inputHash = sha256(concat(smallestOutpoint, pubkey));
+  return BigInt("0x" + b2h(inputHash)) % N_SECP;
+}
+function _aggregateWeightedSenderInputs(privKeys, smallestOutpoint) {
+  let weightedScalar = 0n;
+  let weightedPub = null;
+  for (const priv of privKeys) {
+    const privBytes = typeof priv === "string" ? h2b(priv) : priv;
+    const pubBytes = secp256k1.getPublicKey(privBytes, true);
+    const weight = _hashInputWeight(smallestOutpoint, pubBytes);
+    weightedScalar = (weightedScalar + weight * _scalarFromBytes(privBytes)) % N_SECP;
+    const weightedPoint = secp256k1.ProjectivePoint.fromHex(pubBytes).multiply(weight);
+    weightedPub = weightedPub ? weightedPub.add(weightedPoint) : weightedPoint;
+  }
+  if (!weightedPub || weightedScalar === 0n) throw new Error("Invalid weighted input aggregation");
+  return { scalar: weightedScalar, pub: weightedPub.toRawBytes(true) };
+}
+function _aggregateWeightedObservedInputs(inputs, smallestOutpoint) {
+  let weightedPub = null;
+  for (const inp of inputs) {
+    const pubHex = typeof inp.pubkey === "string" ? inp.pubkey : b2h(inp.pubkey);
+    try {
+      const pubBytes = h2b(pubHex);
+      const weight = _hashInputWeight(smallestOutpoint, pubBytes);
+      const weightedPoint = secp256k1.ProjectivePoint.fromHex(pubBytes).multiply(weight);
+      weightedPub = weightedPub ? weightedPub.add(weightedPoint) : weightedPoint;
+    } catch {
+      continue;
+    }
+  }
+  return weightedPub ? weightedPub.toRawBytes(true) : null;
+}
 function stealthDerive(senderPriv, recipScanPub, recipSpendPub, tweakData) {
   const sharedPoint = secp256k1.getSharedSecret(senderPriv, recipScanPub);
   const sharedX = sharedPoint.slice(1, 33);
@@ -107,27 +158,10 @@ function deriveStealthSendAddr(recipScanPub, recipSpendPub, senderPrivKeys, outp
       A_sum: senderPub
     };
   }
-  let a_sum = 0n;
-  for (const priv of privKeysArr) {
-    const privBytes = typeof priv === "string" ? h2b(priv) : priv;
-    a_sum = (a_sum + BigInt("0x" + b2h(privBytes))) % N_SECP;
-  }
-  const a_sum_bytes = h2b(a_sum.toString(16).padStart(64, "0"));
-  const A_sum = secp256k1.getPublicKey(a_sum_bytes, true);
-  let smallest = null;
-  for (const op of outpoints) {
-    const txidHex = typeof op.txid === "string" ? op.txid : b2h(op.txid);
-    const txidLE = h2b(txidHex).reverse();
-    const vout = op.vout || 0;
-    const outpoint = concat(txidLE, _u32LE(vout));
-    if (!smallest || _compareBytes(outpoint, smallest) < 0) smallest = outpoint;
-  }
+  const smallest = _findSmallestOutpoint(outpoints);
   if (!smallest) throw new Error("No outpoints provided for stealth address computation");
-  const input_hash = sha256(concat(smallest, A_sum));
-  const input_hash_big = BigInt("0x" + b2h(input_hash)) % N_SECP;
-  const tweaked_a = a_sum * input_hash_big % N_SECP;
-  const tweaked_a_bytes = h2b(tweaked_a.toString(16).padStart(64, "0"));
-  const shared = secp256k1.getSharedSecret(tweaked_a_bytes, recipScanPub);
+  const { scalar: weightedScalar, pub: weightedPub } = _aggregateWeightedSenderInputs(privKeysArr, smallest);
+  const shared = secp256k1.getSharedSecret(_scalarToBytes(weightedScalar), recipScanPub);
   const sharedX = shared.slice(1, 33);
   const t = sha256(concat(sharedX, _u32LE(outputIndex)));
   const tBig = BigInt("0x" + b2h(t)) % N_SECP;
@@ -135,7 +169,7 @@ function deriveStealthSendAddr(recipScanPub, recipSpendPub, senderPrivKeys, outp
   const stealthPoint = spendPoint.add(secp256k1.ProjectivePoint.BASE.multiply(tBig));
   const stealthPubBytes = stealthPoint.toRawBytes(true);
   const addr = pubHashToCashAddr(ripemd160(sha256(stealthPubBytes)));
-  return { addr, pub: stealthPubBytes, A_sum };
+  return { addr, pub: stealthPubBytes, A_sum: weightedPub };
 }
 async function scanForStealthPayments(keys, entries) {
   const scanPrivHex = keys.stealthScanPriv;
@@ -143,7 +177,6 @@ async function scanForStealthPayments(keys, entries) {
   if (!scanPrivHex || !spendPubHex) return [];
   const scanPriv = typeof scanPrivHex === "string" ? h2b(scanPrivHex) : scanPrivHex;
   const spendPub = typeof spendPubHex === "string" ? h2b(spendPubHex) : spendPubHex;
-  const scanPrivBig = BigInt("0x" + b2h(scanPriv)) % N_SECP;
   const txMap = /* @__PURE__ */ new Map();
   for (const e of entries) {
     if (!e.pubkey || !e.txid) continue;
@@ -188,32 +221,12 @@ async function scanForStealthPayments(keys, entries) {
       }
       continue;
     }
-    let A_sum = null;
-    for (const inp of inputs) {
-      const pubHex = typeof inp.pubkey === "string" ? inp.pubkey : b2h(inp.pubkey);
-      try {
-        const pt = secp256k1.ProjectivePoint.fromHex(pubHex);
-        A_sum = A_sum ? A_sum.add(pt) : pt;
-      } catch {
-        continue;
-      }
-    }
-    if (!A_sum) continue;
-    const A_sum_bytes = A_sum.toRawBytes(true);
-    let smallest = null;
-    for (const inp of inputs) {
-      if (inp.outpointTxid == null) continue;
-      const txidHex = typeof inp.outpointTxid === "string" ? inp.outpointTxid : b2h(inp.outpointTxid);
-      const txidLE = h2b(txidHex).reverse();
-      const outpoint = concat(txidLE, _u32LE(inp.outpointVout || 0));
-      if (!smallest || _compareBytes(outpoint, smallest) < 0) smallest = outpoint;
-    }
+    const weightedOutpoints = inputs.filter((inp) => inp.outpointTxid != null).map((inp) => ({ txid: inp.outpointTxid, vout: inp.outpointVout || 0 }));
+    const smallest = _findSmallestOutpoint(weightedOutpoints);
     if (!smallest) continue;
-    const input_hash = sha256(concat(smallest, A_sum_bytes));
-    const input_hash_big = BigInt("0x" + b2h(input_hash)) % N_SECP;
-    const tweakedScanPrivBig = scanPrivBig * input_hash_big % N_SECP;
-    const tweakedScanPriv = h2b(tweakedScanPrivBig.toString(16).padStart(64, "0"));
-    const shared = secp256k1.getSharedSecret(tweakedScanPriv, A_sum_bytes);
+    const weightedPub = _aggregateWeightedObservedInputs(inputs, smallest);
+    if (!weightedPub) continue;
+    const shared = secp256k1.getSharedSecret(scanPriv, weightedPub);
     const sharedX = shared.slice(1, 33);
     let rawHex;
     try {
@@ -336,10 +349,23 @@ function _readVarInt(buf, offset) {
   if (first === 254) return { value: buf[offset + 1] | buf[offset + 2] << 8 | buf[offset + 3] << 16 | buf[offset + 4] << 24, next: offset + 5 };
   return { value: 0, next: offset + 9 };
 }
+function deriveStealthChange(inputPriv, ownKeys, firstUtxo, outputIndex = 1) {
+  if (!ownKeys.stealthScanPub || !ownKeys.stealthSpendPub || !ownKeys.stealthSpendPriv) return null;
+  const outpointBytes = _getOutpointBytes(firstUtxo.txid, firstUtxo.vout);
+  return deriveSelfStealth(
+    inputPriv,
+    ownKeys.stealthScanPub,
+    ownKeys.stealthSpendPub,
+    ownKeys.stealthSpendPriv,
+    outpointBytes,
+    outputIndex
+  );
+}
 export {
   checkStealthMatch,
   decodeStealthCode,
   deriveSelfStealth,
+  deriveStealthChange,
   deriveStealthSendAddr,
   encodeStealthCode,
   loadStealthUtxos,

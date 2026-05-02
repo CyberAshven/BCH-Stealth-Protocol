@@ -108,7 +108,7 @@ function rotl64(x, n) {
 }
 function keccakF1600(state) {
   for (let round = 0; round < KECCAK_ROUNDS; round++) {
-    const C = new Array(5);
+    const C = new Array(5).fill(0n);
     for (let x = 0; x < 5; x++) C[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^ state[x + 20];
     for (let x = 0; x < 5; x++) {
       const D = C[(x + 4) % 5] ^ rotl64(C[(x + 1) % 5], 1);
@@ -259,7 +259,7 @@ function adaptorDecrypt(adaptorSig, adaptorSecret) {
 function adaptorRecover(adaptorSig, realSig) {
   const { s_hat } = adaptorSig;
   let { s } = realSig;
-  let t = mod(s_hat - s, N_SECP);
+  let t = mod(BigInt(s_hat) - BigInt(s), N_SECP);
   const T = secp256k1.ProjectivePoint.fromHex(adaptorSig.R);
   const Rprime = secp256k1.ProjectivePoint.fromHex(adaptorSig.Rprime);
   const expectedT = T.subtract(Rprime);
@@ -319,7 +319,7 @@ function bchSchnorrChallenge(Rx, PCompressed, msg) {
     PCompressed,
     // 33-byte compressed pubkey
     sha256(msg)
-    // SHA256(msg) — BCH OP_CHECKDATASIG hashes the message
+    // SHA256(msg) â€” BCH OP_CHECKDATASIG hashes the message
   ))), N_SECP);
 }
 function schnorrAdaptorSign(privKey, adaptorPoint, msg) {
@@ -389,7 +389,7 @@ function schnorrAdaptorDecrypt(adaptorSig, adaptorSecret) {
 function schnorrAdaptorRecover(adaptorSig, realSig) {
   const { s_hat } = adaptorSig;
   const { s } = realSig;
-  const t = mod(s - s_hat, N_SECP);
+  const t = mod(BigInt(s) - BigInt(s_hat), N_SECP);
   return bigIntToBytes32BE(t);
 }
 function schnorrVerify(pubKey, msg, sig) {

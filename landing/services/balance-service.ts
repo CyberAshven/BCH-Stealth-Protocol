@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — Balance & Price Service
    ══════════════════════════════════════════
@@ -26,8 +25,8 @@ const STEALTH_INTERVAL = 30000;  // 30s
 let _balanceTimer = null;
 let _priceTimer = null;
 let _stealthTimer = null;
-let _addresses = {};
-let _keys = null;
+let _addresses: Record<string, string> = {};
+let _keys: Record<string, unknown> | null = null;
 let _running = false;
 
 /* ── Address → Electrum scriptHash ── */
@@ -59,7 +58,7 @@ function _hash20ToScriptHash(hash20) {
 /* ── Derive addresses from keys ── */
 // _cleanAddresses: display-ready addresses (cashAddr, 0x-prefixed, etc.)
 // _electrumAddresses: scriptHash versions for Electrum chains only
-let _cleanAddresses = {};
+let _cleanAddresses: Record<string, string> = {};
 
 function _deriveAddresses(keys) {
   // Use addr-derive.js to derive ALL chain addresses from the HD keys
@@ -213,7 +212,7 @@ function _buildP2PKHScript(chain) {
       const decoded = base58Decode(addr);
       hash20 = decoded.slice(1, 21);
     }
-    return ['76','a9','14',...Array.from(hash20, b => b.toString(16).padStart(2,'0')),'88','ac'].join('');
+    return ['76','a9','14',...Array.from(hash20, (b: number) => b.toString(16).padStart(2,'0')),'88','ac'].join('');
   } catch { return null; }
 }
 
@@ -273,12 +272,12 @@ async function _scanStealth() {
     // Get current block height from Fulcrum
     let tipHeight = 0;
     if (window._fvCall) {
-      try { const h = await window._fvCall('blockchain.headers.subscribe', []); tipHeight = h?.height || 0; } catch {}
+      try { const h = (await window._fvCall('blockchain.headers.subscribe', [])) as any; tipHeight = h?.height || 0; } catch {}
     }
     if (!tipHeight) return; // Can't scan without knowing the tip
 
     // Scan last 10 blocks for stealth pubkeys
-    const lastScan = state.get('stealthScanHeight') || (tipHeight - 10);
+    const lastScan = (state.get('stealthScanHeight') as number) || (tipHeight - 10);
     const from = Math.max(0, lastScan);
     const to = tipHeight;
     if (from >= to) return; // Already up to date
@@ -291,7 +290,7 @@ async function _scanStealth() {
     if (pubkeys && pubkeys.length > 0) {
       try {
         const { scanForStealthPayments } = await import('../core/stealth.js');
-        const found = await scanForStealthPayments(_keys, pubkeys);
+        const found = await scanForStealthPayments(_keys as any, pubkeys);
         if (found.length > 0) {
           // Update sbch balance from saved stealth UTXOs
           _updateStealthBalance();
@@ -314,19 +313,19 @@ async function _updateStealthBalance() {
     // For each stealth UTXO, check if it's still unspent via Fulcrum
     let totalSats = 0;
     for (const u of utxos) {
-      if (!u.addr || u.spent) continue;
+      if (!u.addr || (u as any).spent) continue;
       try {
         const h = cashAddrToHash20(u.addr);
         const script = new Uint8Array([0x76, 0xa9, 0x14, ...h, 0x88, 0xac]);
         const hash = sha256(script);
-        const sh = Array.from(hash).reverse().map(b => b.toString(16).padStart(2, '0')).join('');
-        const unspent = await window._fvCall('blockchain.scripthash.listunspent', [sh]) || [];
+        const sh = Array.from(hash).reverse().map((b: number) => b.toString(16).padStart(2, '0')).join('');
+        const unspent = (await window._fvCall('blockchain.scripthash.listunspent', [sh]) || []) as any[];
         for (const utxo of unspent) totalSats += utxo.value;
       } catch {}
     }
 
     // Update sbch balance in state (store as sats, like all other chains)
-    state.set('balances', { ...state.get('balances'), sbch: totalSats });
+    state.set('balances', { ...(state.get('balances') as Record<string, unknown>), sbch: totalSats });
   } catch (e) {
     console.warn('[balance-service] stealth balance error:', e);
   }

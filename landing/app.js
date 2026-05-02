@@ -44,7 +44,7 @@ async function boot() {
       el.classList.toggle("active", itemPath === path);
     });
     if (mod && mod.title) {
-      document.title = mod.title + " \u2014 00 Protocol";
+      document.title = mod.title + " \xE2\u20AC\u201D 00 Protocol";
     }
   });
   const relays = window._00ep && window._00ep.relays || ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.primal.net"];

@@ -374,7 +374,7 @@ async function _initWC() {
   const SC = mod.SignClient || mod.default;
   _wcClient = await SC.init({
     projectId: WC_PROJECT_ID,
-    metadata: { name: "0penw0rld", description: "BCH Self-Custody", url: "https://0penw0rld.com", icons: ["https://0penw0rld.com/icons/icon-180.png"] }
+    metadata: { name: "BCH Stealth Wallet", description: "BCH Self-Custody", url: "https://0penw0rld.com", icons: ["https://0penw0rld.com/icons/icon-180.png"] }
   });
   return _wcClient;
 }

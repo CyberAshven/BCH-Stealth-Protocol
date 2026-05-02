@@ -43,22 +43,22 @@
     { name: "00 Elon", url: "elon.html" }
   ];
   const APP_ICONS = {
-    "index.html": "\u2302",
+    "index.html": "\xE2\u0152\u201A",
     "wallet.html": '<img src="icons/bch-wallet.png" style="width:18px;height:18px">',
     "chat.html": '<img src="icons/chat.png" style="width:18px;height:18px">',
     "pay.html": '<img src="icons/pay.png" style="width:18px;height:18px">',
-    "swap.html": "\u21C4",
+    "swap.html": "\xE2\u2021\u201E",
     "dex.html": '<img src="icons/dex.png" style="width:18px;height:18px">',
     "loan.html": '<img src="icons/loan.png" style="width:18px;height:18px">',
-    "id.html": "\u25C9",
-    "mesh.html": "\u2B21",
+    "id.html": "\xE2\u2014\u2030",
+    "mesh.html": "\xE2\xAC\xA1",
     "onion.html": '<img src="icons/onion.png" style="width:18px;height:18px">',
     "vault.html": '<img src="icons/vault.png" style="width:18px;height:18px">',
-    "fusion.html": "\u2697",
+    "fusion.html": "\xE2\u0161\u2014",
     "sub.html": '<img src="icons/sub.png" style="width:18px;height:18px">',
-    "analyse.html": "\u25EA",
-    "config.html": "\u2699",
-    "bet.html": "\u{1F3B2}",
+    "analyse.html": "\xE2\u2014\xAA",
+    "config.html": "\xE2\u0161\u2122",
+    "bet.html": "\xF0\u0178\u017D\xB2",
     "elon.html": '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">'
   };
   const APP_SECTIONS = {
@@ -81,7 +81,7 @@
     if (meta) meta.content = theme === "dark" ? "#0c0d12" : "#f5f6f8";
     const icon = document.getElementById("dt-theme-icon");
     const label = document.getElementById("dt-theme-label");
-    if (icon) icon.textContent = theme === "dark" ? "\u2600" : "\u263E";
+    if (icon) icon.textContent = theme === "dark" ? "\xE2\u02DC\u20AC" : "\xE2\u02DC\xBE";
     if (label) label.textContent = theme === "dark" ? "Light mode" : "Dark mode";
     if (IS_DESKTOP) {
       const r = document.documentElement.style;
@@ -96,9 +96,9 @@
   const LANGS = ["EN", "FR", "ES", "CN"];
   const T = {
     EN: { disc: "DISCONNECT", apps: "APPS", confirm: "Clear all data and disconnect?", connect: "CONNECT" },
-    FR: { disc: "D\xC9CONNECTER", apps: "APPS", confirm: "Effacer les donn\xE9es et d\xE9connecter ?", connect: "CONNECTER" },
-    ES: { disc: "DESCONECTAR", apps: "APPS", confirm: "\xBFBorrar datos y desconectar?", connect: "CONECTAR" },
-    CN: { disc: "\u65AD\u5F00\u8FDE\u63A5", apps: "\u5E94\u7528", confirm: "\u6E05\u9664\u6570\u636E\u5E76\u65AD\u5F00\u8FDE\u63A5\uFF1F", connect: "\u8FDE\u63A5" }
+    FR: { disc: "D\xC3\u2030CONNECTER", apps: "APPS", confirm: "Effacer les donn\xC3\xA9es et d\xC3\xA9connecter ?", connect: "CONNECTER" },
+    ES: { disc: "DESCONECTAR", apps: "APPS", confirm: "\xC2\xBFBorrar datos y desconectar?", connect: "CONECTAR" },
+    CN: { disc: "\xE6\u2013\xAD\xE5\xBC\u20AC\xE8\xBF\u017E\xE6\u017D\xA5", apps: "\xE5\xBA\u201D\xE7\u201D\xA8", confirm: "\xE6\xB8\u2026\xE9\u2122\xA4\xE6\u2022\xB0\xE6\x8D\xAE\xE5\xB9\xB6\xE6\u2013\xAD\xE5\xBC\u20AC\xE8\xBF\u017E\xE6\u017D\xA5\xEF\xBC\u0178", connect: "\xE8\xBF\u017E\xE6\u017D\xA5" }
   };
   function isConnected() {
     return !!(localStorage.getItem("00_wif") || localStorage.getItem("00_pub") || localStorage.getItem("00_ledger") || localStorage.getItem("00wallet_vault") || localStorage.getItem("00_wc_session") || localStorage.getItem("00_session_auth"));
@@ -208,12 +208,12 @@
       };
       ov.innerHTML = `
       <div class="disc-modal">
-        <div class="disc-icon">\u26A0</div>
+        <div class="disc-icon">\xE2\u0161\xA0</div>
         <div class="disc-title">${t("disc")}</div>
         <div class="disc-msg">${t("confirm")}</div>
         <div class="disc-actions">
-          <button class="disc-cancel" id="disc-cancel">${_lang === "FR" ? "Annuler" : _lang === "ES" ? "Cancelar" : _lang === "CN" ? "\u53D6\u6D88" : "Cancel"}</button>
-          <button class="disc-confirm" id="disc-ok">${_lang === "FR" ? "Confirmer" : _lang === "ES" ? "Confirmar" : _lang === "CN" ? "\u786E\u8BA4" : "Confirm"}</button>
+          <button class="disc-cancel" id="disc-cancel">${_lang === "FR" ? "Annuler" : _lang === "ES" ? "Cancelar" : _lang === "CN" ? "\xE5\x8F\u2013\xE6\xB6\u02C6" : "Cancel"}</button>
+          <button class="disc-confirm" id="disc-ok">${_lang === "FR" ? "Confirmer" : _lang === "ES" ? "Confirmar" : _lang === "CN" ? "\xE7\xA1\xAE\xE8\xAE\xA4" : "Confirm"}</button>
         </div>
       </div>`;
       document.body.appendChild(ov);
@@ -249,17 +249,17 @@
     if (!btn) return;
     if (isConnected()) {
       btn.className = "sidebar-bottom-item danger";
-      btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t("disc") + "</span>";
+      btn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\x8F\xBB</span><span class="sidebar-label">' + t("disc") + "</span>";
       btn.onclick = disconnect;
     } else {
       btn.className = "sidebar-bottom-item";
-      btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t("connect") + "</span>";
+      btn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\x8F\xBB</span><span class="sidebar-label">' + t("connect") + "</span>";
       btn.onclick = () => {
         window.location.hash = "#/auth";
       };
     }
   }
-  window._shellRefreshAuth = _refreshConnectBtn;
+  window._shellRefreshAuth = () => _refreshConnectBtn();
   const st = document.createElement("style");
   st.textContent = `
   .shell-controls {
@@ -302,7 +302,7 @@
     border-color: rgba(255,60,60,.6); color: rgba(255,110,110,.95);
     box-shadow: 0 0 8px rgba(255,40,40,.12);
   }
-  /* \u2500\u2500 Settings modal \u2500\u2500 */
+  /* \xE2\u201D\u20AC\xE2\u201D\u20AC Settings modal \xE2\u201D\u20AC\xE2\u201D\u20AC */
   .ep-overlay {
     display:none; position:fixed; inset:0; z-index:10000;
     background:rgba(0,0,0,.85); backdrop-filter:blur(6px);
@@ -357,7 +357,7 @@
     font-size:10px; letter-spacing:1px; cursor:pointer; transition:.15s;
   }
   .ep-close:hover { border-color:rgba(0,255,65,.4); color:#00ff41; }
-  /* \u2500\u2500 Disconnect confirm modal \u2500\u2500 */
+  /* \xE2\u201D\u20AC\xE2\u201D\u20AC Disconnect confirm modal \xE2\u201D\u20AC\xE2\u201D\u20AC */
   .disc-overlay {
     display:none; position:fixed; inset:0; z-index:10001;
     background:var(--dt-overlay, rgba(0,0,0,.85)); backdrop-filter:blur(8px);
@@ -396,7 +396,7 @@
     font-size:8px; color:rgba(0,255,65,.2); margin-top:12px;
     letter-spacing:.5px; text-align:center;
   }
-  /* \u2500\u2500 iOS Home Indicator pill \u2500\u2500 */
+  /* \xE2\u201D\u20AC\xE2\u201D\u20AC iOS Home Indicator pill \xE2\u201D\u20AC\xE2\u201D\u20AC */
   .home-indicator {
     flex-shrink: 0;
     display: flex;
@@ -545,9 +545,9 @@
         if (window.importBackup) fileIn.click();
         else window.location.href = "wallet.html?action=importBackup";
       };
-      fileIn.onchange = function() {
-        if (this.files[0] && window.importBackup) window.importBackup(this.files[0]);
-        this.value = "";
+      fileIn.onchange = () => {
+        if (fileIn.files?.[0] && window.importBackup) window.importBackup(fileIn.files[0]);
+        fileIn.value = "";
       };
       const keysBtn = overlay.querySelector("#ep-btn-keys");
       if (keysBtn) keysBtn.onclick = () => {
@@ -639,14 +639,14 @@
   function _netServer(chain) {
     if (chain.ws && window._wsStatus) {
       const s = window._wsStatus(chain.id);
-      if (s.connected && s.server) {
+      if (typeof s !== "string" && s.connected && s.server) {
         try {
           return { on: true, server: new URL(s.server).hostname };
         } catch {
         }
         return { on: true, server: s.server };
       }
-      return { on: false, server: "\u2014" };
+      return { on: false, server: "\xE2\u20AC\u201D" };
     }
     if (chain.rpcKey) {
       const v = _epRead(chain.rpcKey, EP_DEFAULTS[chain.rpcKey]);
@@ -654,13 +654,13 @@
         return { on: true, server: new URL(v.replace("wss://", "https://")).hostname };
       } catch {
       }
-      return { on: !!v, server: v || "\u2014" };
+      return { on: !!v, server: v || "\xE2\u20AC\u201D" };
     }
     if (chain.id === "xmr") {
       const nodes = ["node.moneroworld.com", "xmr-node.cakewallet.com", "nodes.hashvault.pro"];
       return { on: false, server: nodes[0] };
     }
-    return { on: false, server: "\u2014" };
+    return { on: false, server: "\xE2\u20AC\u201D" };
   }
   function buildNetworksModal() {
     const overlay = document.createElement("div");
@@ -681,7 +681,7 @@
       card.className = "net-card";
       card.dataset.chain = ch.id;
       card.id = "net-card-" + ch.id;
-      card.innerHTML = '<div class="net-card-head"><div class="net-card-dot"></div><span class="net-card-name">' + ch.name + '</span><span class="net-card-proto">' + ch.proto + '</span></div><div class="net-card-server" id="net-srv-' + ch.id + '">\u2014</div><div class="net-card-status" id="net-st-' + ch.id + '">\u2014</div>';
+      card.innerHTML = '<div class="net-card-head"><div class="net-card-dot"></div><span class="net-card-name">' + ch.name + '</span><span class="net-card-proto">' + ch.proto + '</span></div><div class="net-card-server" id="net-srv-' + ch.id + '">\xE2\u20AC\u201D</div><div class="net-card-status" id="net-st-' + ch.id + '">\xE2\u20AC\u201D</div>';
       grid.appendChild(card);
     }
     modal.appendChild(grid);
@@ -714,25 +714,25 @@
   function _injectMobileNav() {
     if (document.getElementById("mob-nav")) return;
     const TABS = [
-      { icon: "\u2302", label: "Home", hash: "#/dashboard" },
-      { icon: "\u{1F4B3}", label: "Wallet", hash: "#/wallet" },
-      { icon: "\u2697", label: "Fusion", hash: "#/fusion" },
-      { icon: "\u21C4", label: "Swap", hash: "#/swap" },
-      { icon: "\xB7\xB7\xB7", label: "More", hash: null }
+      { icon: "\xE2\u0152\u201A", label: "Home", hash: "#/dashboard" },
+      { icon: "\xF0\u0178\u2019\xB3", label: "Wallet", hash: "#/wallet" },
+      { icon: "\xE2\u0161\u2014", label: "Fusion", hash: "#/fusion" },
+      { icon: "\xE2\u2021\u201E", label: "Swap", hash: "#/swap" },
+      { icon: "\xC2\xB7\xC2\xB7\xC2\xB7", label: "More", hash: null }
     ];
     const DRAWER_ITEMS = [
-      { icon: "\u{1F4AC}", label: "Chat", hash: "#/chat" },
-      { icon: "\u{1F9C5}", label: "Onion", hash: "#/onion" },
-      { icon: "\u{1F4CA}", label: "DEX", hash: "#/dex" },
-      { icon: "\u{1F4B8}", label: "Pay", hash: "#/pay" },
-      { icon: "\u{1F3E6}", label: "Loan", hash: "#/loan" },
-      { icon: "\u{1F510}", label: "Vault", hash: "#/vault" },
-      { icon: "\u{1F3B2}", label: "Bet", hash: "#/bet" },
-      { icon: "\u25C9", label: "ID", hash: "#/id" },
-      { icon: "\u2B21", label: "Mesh", hash: "#/mesh" },
-      { icon: "\u{1F4CB}", label: "Sub", hash: "#/sub" },
-      { icon: "\u2699", label: "Settings", hash: "#/config" },
-      { icon: "\u{1F511}", label: "Auth", hash: "#/auth" }
+      { icon: "\xF0\u0178\u2019\xAC", label: "Chat", hash: "#/chat" },
+      { icon: "\xF0\u0178\xA7\u2026", label: "Onion", hash: "#/onion" },
+      { icon: "\xF0\u0178\u201C\u0160", label: "DEX", hash: "#/dex" },
+      { icon: "\xF0\u0178\u2019\xB8", label: "Pay", hash: "#/pay" },
+      { icon: "\xF0\u0178\x8F\xA6", label: "Loan", hash: "#/loan" },
+      { icon: "\xF0\u0178\u201D\x90", label: "Vault", hash: "#/vault" },
+      { icon: "\xF0\u0178\u017D\xB2", label: "Bet", hash: "#/bet" },
+      { icon: "\xE2\u2014\u2030", label: "ID", hash: "#/id" },
+      { icon: "\xE2\xAC\xA1", label: "Mesh", hash: "#/mesh" },
+      { icon: "\xF0\u0178\u201C\u2039", label: "Sub", hash: "#/sub" },
+      { icon: "\xE2\u0161\u2122", label: "Settings", hash: "#/config" },
+      { icon: "\xF0\u0178\u201D\u2018", label: "Auth", hash: "#/auth" }
     ];
     const bg = document.createElement("div");
     bg.id = "mob-drawer-bg";
@@ -808,7 +808,7 @@
       const d = document.createElement("div");
       d.className = "shell-drop";
       d.innerHTML = `
-      <button class="shell-btn" data-i18n="apps">${t("apps")} \u25BE</button>
+      <button class="shell-btn" data-i18n="apps">${t("apps")} \xE2\u2013\xBE</button>
       <div class="shell-menu">${appsHtml}</div>`;
       d.querySelector(".shell-btn").onclick = (e) => {
         e.stopPropagation();
@@ -819,7 +819,7 @@
     const langD = document.createElement("div");
     langD.className = "shell-drop";
     langD.innerHTML = `
-    <button class="shell-btn"><span class="shell-lang-cur">${_lang}</span> \u25BE</button>
+    <button class="shell-btn"><span class="shell-lang-cur">${_lang}</span> \xE2\u2013\xBE</button>
     <div class="shell-menu">
       ${LANGS.map(
       (l) => `<div class="shell-menu-item shell-lang-opt${l === _lang ? " active" : ""}" data-lang="${l}">${l}</div>`
@@ -909,7 +909,7 @@
         const isActive = IS_SPA ? resolved === "#/" + cur.replace(".html", "") : url === cur;
         a.className = "sidebar-nav-item" + (isActive ? " active" : "");
         a.href = resolved;
-        a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || "\u25CF"}</span><span class="sidebar-label">${app.name.replace("00 ", "")}</span>`;
+        a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || "\xE2\u2014\x8F"}</span><span class="sidebar-label">${app.name.replace("00 ", "")}</span>`;
         nav.appendChild(a);
       }
     }
@@ -919,28 +919,28 @@
     const docBtn = document.createElement("a");
     docBtn.className = "sidebar-bottom-item";
     docBtn.href = "docs.html";
-    docBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F4D6}</span><span class="sidebar-label">Docs</span>';
+    docBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u201C\u2013</span><span class="sidebar-label">Docs</span>';
     bot.appendChild(docBtn);
     const theme = getTheme();
     const themeBtn = document.createElement("button");
     themeBtn.className = "sidebar-bottom-item";
-    themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === "dark" ? "\u2600" : "\u263E"}</span><span class="sidebar-label" id="dt-theme-label">${theme === "dark" ? "Light mode" : "Dark mode"}</span>`;
+    themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === "dark" ? "\xE2\u02DC\u20AC" : "\xE2\u02DC\xBE"}</span><span class="sidebar-label" id="dt-theme-label">${theme === "dark" ? "Light mode" : "Dark mode"}</span>`;
     themeBtn.onclick = () => setTheme(getTheme() === "light" ? "dark" : "light");
     bot.appendChild(themeBtn);
     const netBtn = document.createElement("button");
     netBtn.className = "sidebar-bottom-item";
-    netBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F310}</span><span class="sidebar-label">Networks</span><span class="sidebar-net-dots" id="sb-net-dots"><span class="sb-dot" data-chain="bch"></span><span class="sb-dot" data-chain="btc"></span><span class="sb-dot" data-chain="eth"></span><span class="sb-dot" data-chain="xmr"></span></span>';
+    netBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u0152\x90</span><span class="sidebar-label">Networks</span><span class="sidebar-net-dots" id="sb-net-dots"><span class="sb-dot" data-chain="bch"></span><span class="sb-dot" data-chain="btc"></span><span class="sb-dot" data-chain="eth"></span><span class="sb-dot" data-chain="xmr"></span></span>';
     netBtn.onclick = () => openNetworks();
     bot.appendChild(netBtn);
     const setBtn = document.createElement("button");
     setBtn.className = "sidebar-bottom-item";
-    setBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2699</span><span class="sidebar-label">Settings</span>';
+    setBtn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\u0161\u2122</span><span class="sidebar-label">Settings</span>';
     setBtn.onclick = () => openSettings();
     bot.appendChild(setBtn);
     if (localStorage.getItem("00wallet_vault")) {
       const keysBtn = document.createElement("button");
       keysBtn.className = "sidebar-bottom-item";
-      keysBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F511}</span><span class="sidebar-label">Export Keys</span>';
+      keysBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u201D\u2018</span><span class="sidebar-label">Export Keys</span>';
       keysBtn.onclick = () => {
         if (window.openExportKeys) window.openExportKeys();
         else window.location.href = "wallet.html?action=exportKeys";
@@ -948,7 +948,7 @@
       bot.appendChild(keysBtn);
       const walletBtn = document.createElement("button");
       walletBtn.className = "sidebar-bottom-item";
-      walletBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F4BE}</span><span class="sidebar-label">Export Wallet</span>';
+      walletBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u2019\xBE</span><span class="sidebar-label">Export Wallet</span>';
       walletBtn.onclick = () => {
         if (window.exportBackup) window.exportBackup();
         else window.location.href = "wallet.html?action=exportBackup";
@@ -961,7 +961,7 @@
     bot.appendChild(discBtn);
     const colBtn = document.createElement("button");
     colBtn.className = "sidebar-bottom-item";
-    colBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2630</span><span class="sidebar-label">Collapse</span>';
+    colBtn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\u02DC\xB0</span><span class="sidebar-label">Collapse</span>';
     colBtn.onclick = () => {
       const isAutoCollapsed = window.matchMedia("(min-width:900px) and (max-width:1100px)").matches;
       if (isAutoCollapsed) {

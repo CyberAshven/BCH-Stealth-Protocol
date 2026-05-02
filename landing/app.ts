@@ -1,12 +1,11 @@
-// @ts-nocheck
-/* ══════════════════════════════════════════
-   00 Wallet — SPA Bootstrap
-   ══════════════════════════════════════════
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   00 Wallet â€” SPA Bootstrap
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Entry point. Initializes core services,
    registers routes, boots the application.
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-// Core modules imported without version params — nginx serves no-cache headers
+// Core modules imported without version params â€” nginx serves no-cache headers
 // This ensures app.js and views share the SAME module instances (critical for auth state)
 import * as state from './core/state.js';
 import * as auth from './core/auth.js';
@@ -15,7 +14,7 @@ import { nostrInit } from './core/nostr-bridge.js';
 import * as balanceService from './services/balance-service.js';
 import * as hdScanner from './services/hd-scanner.js';
 
-/* ── Route registry (all lazy-loaded) ── */
+/* â”€â”€ Route registry (all lazy-loaded) â”€â”€ */
 /* Bump _V on deploy to bust browser module cache */
 const _V = '?v=54';
 const ROUTES = {
@@ -39,7 +38,7 @@ const ROUTES = {
   'elon':       () => import('./views/elon.js' + _V),
 };
 
-/* ── Boot sequence ── */
+/* â”€â”€ Boot sequence â”€â”€ */
 async function boot() {
 
   // 1. Initialize state store (hydrate from localStorage)
@@ -71,7 +70,7 @@ async function boot() {
     });
     // Update page title
     if (mod && mod.title) {
-      document.title = mod.title + ' — 00 Protocol';
+      document.title = mod.title + ' â€” 00 Protocol';
     }
   });
 
@@ -91,7 +90,7 @@ async function boot() {
     unlocked = await auth.tryAutoUnlock();
     if (unlocked) {
       balanceService.start(auth.getKeys());
-      hdScanner.scan(auth.getKeys()); // background — don't await
+      hdScanner.scan(auth.getKeys()); // background â€” don't await
       // Start XMR scanner if keys available
       const keys = auth.getKeys();
       if (keys?.xmr) {
@@ -150,7 +149,7 @@ async function boot() {
 
 }
 
-/* ── Start ── */
+/* â”€â”€ Start â”€â”€ */
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);
 } else {

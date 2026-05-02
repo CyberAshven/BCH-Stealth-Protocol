@@ -1,0 +1,89 @@
+﻿2026-05-02T10:49:27.8895122Z Current runner version: '2.334.0'
+2026-05-02T10:49:27.8919367Z ##[group]Runner Image Provisioner
+2026-05-02T10:49:27.8920149Z Hosted Compute Agent
+2026-05-02T10:49:27.8920864Z Version: 20260213.493
+2026-05-02T10:49:27.8921716Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-05-02T10:49:27.8922409Z Build Date: 2026-02-13T00:28:41Z
+2026-05-02T10:49:27.8923151Z Worker ID: {034aabe2-45a9-4aee-9c1f-2aca54187b1f}
+2026-05-02T10:49:27.8923799Z Azure Region: westus
+2026-05-02T10:49:27.8924324Z ##[endgroup]
+2026-05-02T10:49:27.8925853Z ##[group]Operating System
+2026-05-02T10:49:27.8926452Z Ubuntu
+2026-05-02T10:49:27.8926916Z 24.04.4
+2026-05-02T10:49:27.8927464Z LTS
+2026-05-02T10:49:27.8927896Z ##[endgroup]
+2026-05-02T10:49:27.8928395Z ##[group]Runner Image
+2026-05-02T10:49:27.8928943Z Image: ubuntu-24.04
+2026-05-02T10:49:27.8929496Z Version: 20260413.86.1
+2026-05-02T10:49:27.8930632Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-05-02T10:49:27.8932453Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-05-02T10:49:27.8933375Z ##[endgroup]
+2026-05-02T10:49:27.8934439Z ##[group]GITHUB_TOKEN Permissions
+2026-05-02T10:49:27.8936773Z Contents: read
+2026-05-02T10:49:27.8937412Z Metadata: read
+2026-05-02T10:49:27.8937942Z ##[endgroup]
+2026-05-02T10:49:27.8940257Z Secret source: Actions
+2026-05-02T10:49:27.8941321Z Prepare workflow directory
+2026-05-02T10:49:27.9279609Z Prepare all required actions
+2026-05-02T10:49:27.9385943Z Complete job name: sync-release
+2026-05-02T10:49:28.0181080Z ##[group]Run set -euo pipefail
+2026-05-02T10:49:28.0182350Z [36;1mset -euo pipefail[0m
+2026-05-02T10:49:28.0182996Z [36;1mif [ "release" = "workflow_dispatch" ]; then[0m
+2026-05-02T10:49:28.0183789Z [36;1m  echo "tag=" >> "$GITHUB_OUTPUT"[0m
+2026-05-02T10:49:28.0184494Z [36;1melse[0m
+2026-05-02T10:49:28.0185233Z [36;1m  echo "tag=BCH-Stealth-Wallet-latest" >> "$GITHUB_OUTPUT"[0m
+2026-05-02T10:49:28.0185950Z [36;1mfi[0m
+2026-05-02T10:49:28.0707341Z shell: /usr/bin/bash -e {0}
+2026-05-02T10:49:28.0708925Z ##[endgroup]
+2026-05-02T10:49:28.1148827Z ##[group]Run set -euo pipefail
+2026-05-02T10:49:28.1150069Z [36;1mset -euo pipefail[0m
+2026-05-02T10:49:28.1151070Z [36;1m[0m
+2026-05-02T10:49:28.1152276Z [36;1mif [ -z "${SYNC_TOKEN}" ] || [ -z "${TARGET_REPO}" ]; then[0m
+2026-05-02T10:49:28.1232624Z [36;1m  echo "SYNC_TOKEN or SYNC_TARGET_REPO is missing. Skipping release sync."[0m
+2026-05-02T10:49:28.1233867Z [36;1m  exit 0[0m
+2026-05-02T10:49:28.1234522Z [36;1mfi[0m
+2026-05-02T10:49:28.1235060Z [36;1m[0m
+2026-05-02T10:49:28.1235752Z [36;1mif [ "$SOURCE_REPO" = "$TARGET_REPO" ]; then[0m
+2026-05-02T10:49:28.1236967Z [36;1m  echo "SYNC_TARGET_REPO points to this repository. Nothing to do."[0m
+2026-05-02T10:49:28.1238148Z [36;1m  exit 0[0m
+2026-05-02T10:49:28.1238769Z [36;1mfi[0m
+2026-05-02T10:49:28.1239339Z [36;1m[0m
+2026-05-02T10:49:28.1239952Z [36;1mmkdir -p .sync-release[0m
+2026-05-02T10:49:28.1240746Z [36;1m[0m
+2026-05-02T10:49:28.1242303Z [36;1mGH_TOKEN="$SYNC_TOKEN" gh api "repos/${SOURCE_REPO}/releases/tags/${TAG}" > .sync-release/src.json[0m
+2026-05-02T10:49:28.1243753Z [36;1m[0m
+2026-05-02T10:49:28.1244569Z [36;1mTITLE=$(jq -r '.name // .tag_name' .sync-release/src.json)[0m
+2026-05-02T10:49:28.1245716Z [36;1mBODY_FILE=.sync-release/body.md[0m
+2026-05-02T10:49:28.1246843Z [36;1mjq -r '.body // ""' .sync-release/src.json > "$BODY_FILE"[0m
+2026-05-02T10:49:28.1248356Z [36;1mTARGET_COMMIT=$(jq -r '.target_commitish // "main"' .sync-release/src.json)[0m
+2026-05-02T10:49:28.1249931Z [36;1mIS_DRAFT=$(jq -r '.draft' .sync-release/src.json)[0m
+2026-05-02T10:49:28.1251111Z [36;1mIS_PRE=$(jq -r '.prerelease' .sync-release/src.json)[0m
+2026-05-02T10:49:28.1252367Z [36;1m[0m
+2026-05-02T10:49:28.1253499Z [36;1mif GH_TOKEN="$SYNC_TOKEN" gh release view "$TAG" --repo "$TARGET_REPO" >/dev/null 2>&1; then[0m
+2026-05-02T10:49:28.1255802Z [36;1m  GH_TOKEN="$SYNC_TOKEN" gh release edit "$TAG" --repo "$TARGET_REPO" --title "$TITLE" --notes-file "$BODY_FILE" --target "$TARGET_COMMIT"[0m
+2026-05-02T10:49:28.1258021Z [36;1melse[0m
+2026-05-02T10:49:28.1259291Z [36;1m  CREATE_ARGS=(--repo "$TARGET_REPO" --title "$TITLE" --notes-file "$BODY_FILE" --target "$TARGET_COMMIT")[0m
+2026-05-02T10:49:28.1260993Z [36;1m  if [ "$IS_DRAFT" = "true" ]; then CREATE_ARGS+=(--draft); fi[0m
+2026-05-02T10:49:28.1302697Z [36;1m  if [ "$IS_PRE" = "true" ]; then CREATE_ARGS+=(--prerelease); fi[0m
+2026-05-02T10:49:28.1304127Z [36;1m  GH_TOKEN="$SYNC_TOKEN" gh release create "$TAG" "${CREATE_ARGS[@]}"[0m
+2026-05-02T10:49:28.1305269Z [36;1mfi[0m
+2026-05-02T10:49:28.1305877Z [36;1m[0m
+2026-05-02T10:49:28.1306888Z [36;1mjq -r '.assets[] | @base64' .sync-release/src.json | while read -r encoded; do[0m
+2026-05-02T10:49:28.1308219Z [36;1m  row=$(echo "$encoded" | base64 --decode)[0m
+2026-05-02T10:49:28.1309191Z [36;1m  name=$(echo "$row" | jq -r '.name')[0m
+2026-05-02T10:49:28.1310154Z [36;1m  api_url=$(echo "$row" | jq -r '.url')[0m
+2026-05-02T10:49:28.1311119Z [36;1m  out=".sync-release/${name}"[0m
+2026-05-02T10:49:28.1312213Z [36;1m[0m
+2026-05-02T10:49:28.1313670Z [36;1m  curl -sSL -H "Authorization: ***" -H "Accept: application/octet-stream" "$api_url" -o "$out"[0m
+2026-05-02T10:49:28.1315565Z [36;1m  GH_TOKEN="$SYNC_TOKEN" gh release upload "$TAG" "$out" --repo "$TARGET_REPO" --clobber[0m
+2026-05-02T10:49:28.1316888Z [36;1mdone[0m
+2026-05-02T10:49:28.1341450Z shell: /usr/bin/bash -e {0}
+2026-05-02T10:49:28.1342318Z env:
+2026-05-02T10:49:28.1342898Z   SYNC_TOKEN: ***
+2026-05-02T10:49:28.1343318Z   SOURCE_REPO: CyberAshven/00-Wallet
+2026-05-02T10:49:28.1343886Z   TARGET_REPO: CyberAshven/BCH-Stealth-Protocol
+2026-05-02T10:49:28.1344469Z   TAG: BCH-Stealth-Wallet-latest
+2026-05-02T10:49:28.1344921Z ##[endgroup]
+2026-05-02T10:49:29.2784303Z HTTP 403: API rate limit exceeded for user ID 130158492. If you reach out to GitHub Support for help, please include the request ID 4C14:3E3157:63B4011:655B0DC:69F5D6B9 and timestamp 2026-05-02 10:49:29 UTC. For more on scraping GitHub and how it may affect your rights, please review our Terms of Service (https://docs.github.com/en/site-policy/github-terms/github-terms-of-service) (https://api.github.com/repos/CyberAshven/BCH-Stealth-Protocol/releases/316679058)
+2026-05-02T10:49:29.2800901Z ##[error]Process completed with exit code 1.
+2026-05-02T10:49:29.2913097Z Cleaning up orphan processes

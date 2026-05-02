@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    00 Wallet — HD Address Scanner Service
    ══════════════════════════════════════════
@@ -46,7 +45,7 @@ async function _loadCrypto() {
   _pubHashToCashAddr = ca.pubHashToCashAddr;
 
   const N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
-  const b2h = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  const b2h = (bytes: Uint8Array | number[]) => Array.from(bytes, (b: number) => b.toString(16).padStart(2, '0')).join('');
   const h2b = hex => { const a = new Uint8Array(hex.length / 2); for (let i = 0; i < hex.length; i += 2) a[i/2] = parseInt(hex.substr(i, 2), 16); return a; };
   const concat = (...arrs) => { const out = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0)); let o = 0; for (const a of arrs) { out.set(a, o); o += a.length; } return out; };
 
@@ -63,7 +62,7 @@ function _addrToSH(addr) {
   const h = _cashAddrToHash20(addr);
   const script = new Uint8Array([0x76, 0xa9, 0x14, ...h, 0x88, 0xac]);
   const hash = _sha256(script);
-  return Array.from(hash).reverse().map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(hash as Uint8Array).reverse().map((b: number) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function _privToAddr(priv) {
@@ -111,7 +110,7 @@ export async function scan(keys) {
         if (!window._fvCall) return { ...d, hasActivity: false };
         try {
           const sh = _addrToSH(d.addr);
-          const hist = (await window._fvCall('blockchain.scripthash.get_history', [sh])) || [];
+          const hist = ((await window._fvCall('blockchain.scripthash.get_history', [sh])) || []) as unknown[];
           return { ...d, scriptHash: sh, hasActivity: hist.length > 0 };
         } catch { return { ...d, hasActivity: false }; }
       }));
@@ -166,12 +165,12 @@ export function getReceiveAddrs() { return _hdAddresses.filter(a => a.branch ===
 export function getChangeAddrs() { return _hdAddresses.filter(a => a.branch === 'change').map(a => a.addr); }
 export function getAllScriptHashes() {
   if (!_sha256 || !_cashAddrToHash20 || _hdAddresses.length === 0) return [];
-  const b2h = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  const b2h = (bytes: Uint8Array | number[]) => Array.from(bytes, (b: number) => b.toString(16).padStart(2, '0')).join('');
   return _hdAddresses.map(a => {
     try {
       const h = _cashAddrToHash20(a.addr);
       const script = new Uint8Array([0x76, 0xa9, 0x14, ...h, 0x88, 0xac]);
-      const hash = _sha256(script);
+      const hash = _sha256(script) as Uint8Array;
       return b2h(Array.from(hash).reverse());
     } catch { return null; }
   }).filter(Boolean);

@@ -7,7 +7,7 @@ import {
   scReduce32,
   bigIntToBytes32LE,
   L_ED
-} from "./xmr-swap-crypto.js?v=3";
+} from "./xmr-swap-crypto.js";
 import { ed25519 } from "./lib/noble-curves.js";
 const G_ED = ed25519.ExtendedPoint.BASE;
 const XMR_NODES = [

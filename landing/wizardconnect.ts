@@ -1,5 +1,4 @@
-// @ts-nocheck
-// wizardconnect.js — WizardConnect protocol + WalletConnect v2 global bridge
+﻿// wizardconnect.js â€” WizardConnect protocol + WalletConnect v2 global bridge
 // Loaded as a plain <script> in index.html (non-module).
 // Provides window.WizardConnect with:
 //   - Basic session stub (isConnected, onSession, _setSession)
@@ -11,22 +10,22 @@
 (function () {
   'use strict';
 
-  /* ── Relay list ── */
+  /* â”€â”€ Relay list â”€â”€ */
   const RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.snort.social'];
   const WIZ_KIND = 24133;
 
-  /* ── Byte helpers ── */
-  function _hex(b) { return Array.from(b, x => x.toString(16).padStart(2, '0')).join(''); }
+  /* â”€â”€ Byte helpers â”€â”€ */
+  function _hex(b: Uint8Array) { return Array.from(b, (x: number) => x.toString(16).padStart(2, '0')).join(''); }
   function _h2b(h) { const a = new Uint8Array(h.length >> 1); for (let i = 0; i < h.length; i += 2) a[i >> 1] = parseInt(h.slice(i, i + 2), 16); return a; }
   function _rand(n) { return crypto.getRandomValues(new Uint8Array(n)); }
 
-  /* ── SHA-256 via Web Crypto (no import needed) ── */
+  /* â”€â”€ SHA-256 via Web Crypto (no import needed) â”€â”€ */
   async function _sha256bytes(str) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
     return new Uint8Array(buf);
   }
 
-  /* ── Lazy noble-curves secp256k1 import ── */
+  /* â”€â”€ Lazy noble-curves secp256k1 import â”€â”€ */
   let _secp256k1 = null;
   async function _secp() {
     if (!_secp256k1) {
@@ -36,7 +35,7 @@
     return _secp256k1;
   }
 
-  /* ── Generate ephemeral keypair with even y (02 prefix) ── */
+  /* â”€â”€ Generate ephemeral keypair with even y (02 prefix) â”€â”€ */
   async function _genKeypair() {
     const secp = await _secp();
     let priv = _rand(32);
@@ -54,13 +53,13 @@
     return { priv, pub, xonly, xonlyHex: _hex(xonly), pubHex: _hex(pub) };
   }
 
-  /* ── ECDH shared secret (x-coordinate of point) ── */
+  /* â”€â”€ ECDH shared secret (x-coordinate of point) â”€â”€ */
   async function _ecdh(myPriv, theirPub33Hex) {
     const secp = await _secp();
     return secp.getSharedSecret(myPriv, _h2b(theirPub33Hex)).slice(1); // 32 bytes
   }
 
-  /* ── AES-256-GCM encrypt/decrypt ── */
+  /* â”€â”€ AES-256-GCM encrypt/decrypt â”€â”€ */
   async function _aesKey(keyBytes) {
     return crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   }
@@ -80,7 +79,7 @@
     return JSON.parse(new TextDecoder().decode(pt));
   }
 
-  /* ── Build & sign a Nostr event (NIP-01) ── */
+  /* â”€â”€ Build & sign a Nostr event (NIP-01) â”€â”€ */
   async function _makeNostrEvent(priv, xonlyHex, kind, tags, content) {
     const secp = await _secp();
     const created_at = Math.floor(Date.now() / 1000);
@@ -90,7 +89,7 @@
     return { id: _hex(idBytes), pubkey: xonlyHex, created_at, kind, tags, content, sig: _hex(sig) };
   }
 
-  /* ── Simple Nostr relay WebSocket ── */
+  /* â”€â”€ Simple Nostr relay WebSocket â”€â”€ */
   function _openRelay(url, onEvent, onOpen) {
     try {
       const ws = new WebSocket(url);
@@ -107,10 +106,23 @@
     for (const ws of wsList) { try { if (ws?.readyState === 1) ws.send(JSON.stringify(['EVENT', event])); } catch {} }
   }
 
-  /* ══════════════════════════════════════════
-     WalletManager — shows QR code, receives sign requests
-     ══════════════════════════════════════════ */
+  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     WalletManager â€” shows QR code, receives sign requests
+     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
   class WalletManager {
+    _priv: Uint8Array | null;
+    _xonlyHex: string | null;
+    _pubHex: string | null;
+    _sessionId: string | null;
+    _dappPubHex: string | null;
+    _sharedKey: Uint8Array | null;
+    _relays: WebSocket[];
+    _subId: string | null;
+    _dappName: string | null;
+    _onConnect: ((name: string) => void) | null;
+    _onSignReq: ((payload: any) => void) | null;
+    _onDisconnect: (() => void) | null;
+
     constructor() {
       this._priv = null; this._xonlyHex = null; this._pubHex = null;
       this._sessionId = null; this._dappPubHex = null; this._sharedKey = null;
@@ -137,7 +149,7 @@
         if (!ev?.content || !ev?.tags) return;
         if (!ev.tags.find(t => t[0] === 's' && t[1] === sid)) return;
 
-        // First message: derive shared key from dapp's Nostr pubkey (xonly → 02+xonly)
+        // First message: derive shared key from dapp's Nostr pubkey (xonly â†’ 02+xonly)
         if (!this._sharedKey) {
           if (!ev.pubkey || ev.pubkey.length !== 64) return;
           this._dappPubHex = '02' + ev.pubkey;
@@ -194,10 +206,22 @@
     destroy() { for (const ws of this._relays) try { ws.close(); } catch {} this._relays = []; }
   }
 
-  /* ══════════════════════════════════════════
-     DappManager — scans/pastes wiz:// URI, initiates connection
-     ══════════════════════════════════════════ */
+  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     DappManager â€” scans/pastes wiz:// URI, initiates connection
+     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
   class DappManager {
+    _name: string;
+    _icon: string;
+    _priv: Uint8Array | null;
+    _xonlyHex: string | null;
+    _walletPubHex: string | null;
+    _sessionId: string | null;
+    _sharedKey: Uint8Array | null;
+    _relays: WebSocket[];
+    _subId: string | null;
+    _onConnect: ((walletName: string, walletIcon: string, paths: any[]) => void) | null;
+    _onDisconnect: ((reason?: string) => void) | null;
+
     constructor(name, icon) {
       this._name = name || 'Dapp'; this._icon = icon || '';
       this._priv = null; this._xonlyHex = null;
@@ -259,7 +283,7 @@
     destroy() { for (const ws of this._relays) try { ws.close(); } catch {} this._relays = []; }
   }
 
-  /* ── Initialize or extend window.WizardConnect ── */
+  /* â”€â”€ Initialize or extend window.WizardConnect â”€â”€ */
   if (!window.WizardConnect) {
     window.WizardConnect = {
       version: '2.0',

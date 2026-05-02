@@ -1,4 +1,4 @@
-window.CHAINS = Object.freeze({
+const CHAINS = Object.freeze({
   bch: { name: "Bitcoin Cash", ticker: "BCH", decimals: 8, color: "#0AC18E", icon: "icons/bch.png", apiType: "electrum" },
   sbch: { name: "Stealth BCH", ticker: "BCH", decimals: 8, color: "#BF5AF2", icon: "icons/bch.png", apiType: "none" },
   btc: { name: "Bitcoin", ticker: "BTC", decimals: 8, color: "#F7931A", icon: "icons/btc.png", apiType: "electrum" },
@@ -17,6 +17,7 @@ window.CHAINS = Object.freeze({
   xrp: { name: "XRP", ticker: "XRP", decimals: 6, color: "#0085C0", icon: "icons/xrp.png", apiType: "xrp", rpc: "wss://xrplcluster.com" },
   xlm: { name: "Stellar", ticker: "XLM", decimals: 7, color: "#14B6E7", icon: "icons/xlm.png", apiType: "xlm", rpc: "https://horizon.stellar.org" }
 });
+window.CHAINS = CHAINS;
 function _ep(chain) {
   if (chain === "avax" || chain === "sol") return CHAINS[chain]?.rpc || "";
   const ep = window._00ep || {};
@@ -216,7 +217,7 @@ function _persistBalances(results) {
   const obj = { ...prev, ts: Date.now() };
   for (const [chain, res] of Object.entries(results)) {
     if (res.loaded) {
-      obj[chain] = typeof res.balance === "string" ? res.balance : res.balance;
+      obj[chain] = res.balance;
     }
   }
   localStorage.setItem("00_balances", JSON.stringify(obj));
@@ -445,7 +446,7 @@ async function _xrpHistory(addr, limit) {
           amount: typeof t.tx.Amount === "string" ? parseInt(t.tx.Amount) : 0,
           height: t.tx.ledger_index || 0,
           timestamp: (t.tx.date || 0) + 946684800
-          // Ripple epoch → Unix
+          // Ripple epoch â†’ Unix
         }));
         resolve(txs);
       } catch {
@@ -478,7 +479,7 @@ window.chainsGetHistory = async function(chain, addr, limit = 20) {
         return await _solHistory(addr, limit);
       case "xrp":
         return await _xrpHistory(addr, limit);
-      // BCH, BTC, XMR — handled by wallet.html (complex parsing, SharedWorker)
+      // BCH, BTC, XMR â€” handled by wallet.html (complex parsing, SharedWorker)
       default:
         return [];
     }

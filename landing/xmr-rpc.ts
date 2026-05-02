@@ -1,12 +1,11 @@
-// @ts-nocheck
-/**
+﻿/**
  * 00-Protocol: Monero RPC Client + Output Scanner
  *
- * Pure JavaScript — connects to Monero daemon (monerod) via JSON-RPC
+ * Pure JavaScript â€” connects to Monero daemon (monerod) via JSON-RPC
  * and scans outputs using view key cryptography.
  *
  * For browser use: requires CORS proxy since most XMR nodes don't allow CORS.
- * Proxy: /xmr-rpc/ on our server → forwards to monerod.
+ * Proxy: /xmr-rpc/ on our server â†’ forwards to monerod.
  *
  * Implements:
  *  1. Monero daemon RPC client (get_info, get_block, get_transactions, etc.)
@@ -20,15 +19,15 @@ import {
   b2h, h2b, concat, mod, keccak256, scReduce32,
   bytesToBigInt, bigIntToBytes32BE, bigIntToBytes32LE,
   L_ED
-} from './xmr-swap-crypto.js?v=3';
+} from './xmr-swap-crypto.js';
 
 import { ed25519 } from './lib/noble-curves.js';
 
 const G_ED = ed25519.ExtendedPoint.BASE;
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    XMR NODE CONFIGURATION
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 const XMR_NODES = [
   // Our CORS proxy (primary)
@@ -42,9 +41,9 @@ const XMR_NODES = [
 let _activeNode = XMR_NODES[0];
 let _connected = false;
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    JSON-RPC CLIENT
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * Call a Monero daemon JSON-RPC method
@@ -98,9 +97,9 @@ async function daemonOther(endpoint, params = {}) {
   return resp.json();
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    DAEMON RPC METHODS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /** Get daemon info (height, difficulty, version, etc.) */
 async function getInfo() {
@@ -158,9 +157,9 @@ async function getOutputDistribution(amounts = [0], fromHeight = 0) {
   });
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MONERO OUTPUT CRYPTO
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Output scanning: for each TX output, check if it belongs to us.
 
@@ -274,7 +273,7 @@ function computeSharedSecret(viewPriv, txPubKey) {
  * @returns {Uint8Array} 32-byte key image
  */
 function computeKeyImage(outputPrivKey, outputPubKey) {
-  // Hash-to-point: Hp(P) — iterative hashing until we get a valid point
+  // Hash-to-point: Hp(P) â€” iterative hashing until we get a valid point
   const hp = hashToPoint(outputPubKey);
 
   // x * Hp(P)
@@ -305,9 +304,9 @@ function hashToPoint(data) {
   throw new Error('hashToPoint: failed to find valid point');
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    AMOUNT DECRYPTION (RingCT)
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Monero encrypts output amounts in RingCT transactions.
    Decryption: amount = encrypted_amount XOR first_8_bytes(Hs("amount" || Hs(a*R, i)))
@@ -342,9 +341,9 @@ function decryptAmount(encryptedAmount, sharedSecret, outputIndex) {
   return amount;
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TX EXTRA PARSING
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    TX extra field contains tagged data:
    - Tag 0x01: TX public key (32 bytes)
@@ -385,7 +384,7 @@ function parseTxExtra(extra) {
         i += 32;
       }
     } else {
-      // Unknown tag — try to skip
+      // Unknown tag â€” try to skip
       // This is a heuristic: if we see something that looks like a 32-byte key, skip it
       if (i + 32 <= extra.length) {
         i += 32;
@@ -396,9 +395,9 @@ function parseTxExtra(extra) {
   return { txPubKey, additionalPubKeys };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    OUTPUT SCANNER
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * Scan a transaction for outputs belonging to a given view/spend key pair
@@ -573,9 +572,9 @@ async function scanSingleTx(txHash, viewPriv, spendPub) {
   };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    ATOMIC SWAP VERIFICATION
-   ══════════════════════════════════════════
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
    Bob needs to verify that Alice has locked XMR to the shared address.
    Steps:
@@ -676,9 +675,9 @@ async function pollXmrLock(txHash, viewPriv, spendPub, expectedAmount, minConfir
   return { verified: false, reason: 'timeout' };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MEMPOOL SCANNING
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * Scan mempool for incoming outputs (unconfirmed)
@@ -709,9 +708,9 @@ async function scanMempool(viewPriv, spendPub) {
   return found;
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    CONNECTION MANAGEMENT
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /**
  * Test connection to XMR node
@@ -758,9 +757,9 @@ function setNode(url, name) {
   _connected = false;
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    VARINT ENCODING (Monero format)
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function varintEncode(n) {
   const bytes = [];
   while (n >= 0x80) {
@@ -783,9 +782,9 @@ function varintDecode(bytes, offset = 0) {
   return { value: n, length: i - offset };
 }
 
-/* ══════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    EXPORTS
-   ══════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 export {
   // Connection
   autoConnect,

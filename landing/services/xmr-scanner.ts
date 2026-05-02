@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* ══════════════════════════════════════════
    xmr-scanner.js — Monero WASM Scanner & Balance Service
    ══════════════════════════════════════════
@@ -96,7 +95,7 @@ async function _ensureWallet(onStatus) {
 }
 
 /* ── Scan using WASM sync ── */
-export async function scan(onProgress) {
+export async function scan(onProgress?: (msg: string) => void) {
   if (_scanning || !_viewPriv || !_spendPub) return;
   _scanning = true;
 

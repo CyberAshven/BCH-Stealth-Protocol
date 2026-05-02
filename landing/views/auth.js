@@ -3,7 +3,7 @@ import { generateMnemonic, mnemonicToSeed, deriveBchPriv } from "../core/hd.js";
 import { b2h, h2b, rand } from "../core/utils.js";
 import { navigate } from "../router.js";
 const id = "auth";
-const title = "00 Wallet \u2014 Connect";
+const title = "BCH Stealth Wallet \u2014 Connect";
 const icon = "\u{1F510}";
 let _container = null;
 function hasVault() {
@@ -407,7 +407,7 @@ async function doWizardConnect() {
       return;
     }
     try {
-      wizDappMgr = new WC.DappManager("00 Protocol", "https://0penw0rld.com/icons/00.png");
+      wizDappMgr = new WC.DappManager("BCH Stealth Wallet", "https://0penw0rld.com/icons/00.png");
       wizDappMgr.onConnect((walletName, walletIcon, paths) => {
         statusEl.innerHTML = '<span style="color:#0AC18E">\u2713 Connected to ' + walletName + " \u2014 " + paths.length + " paths</span>";
         localStorage.setItem("00_wiz_paths", JSON.stringify(paths));

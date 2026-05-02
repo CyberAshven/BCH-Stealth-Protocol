@@ -1,19 +1,18 @@
-// @ts-nocheck
-// ─────────────────────────────────────────────────────────────────────────────
-// 00 Ledger.js — WebHID APDU transport for Ledger BCH signing
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// 00 Ledger.js â€” WebHID APDU transport for Ledger BCH signing
 // Supported devices (vendorId 0x2c97):
 //   Nano-S 0x0001 | Nano-X 0x0004 | Nano-S+ 0x0005
 //   Nano-S new 0x1000 | Nano-X new 0x4000 | Nano-S-Plus 0x5000
 //   Stax 0x6000 | Flex 0x7000 | Apex P 0x8000
 // BCH: m/44'/145'/0'/0/0, CashAddr, SIGHASH_ALL|FORKID (0x41)
-// Uses BIP143 segwit-like mode (type 0x02) — no GET_TRUSTED_INPUT needed
-// ─────────────────────────────────────────────────────────────────────────────
+// Uses BIP143 segwit-like mode (type 0x02) â€” no GET_TRUSTED_INPUT needed
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (function(G) { 'use strict';
 
 const VENDOR = 0x2c97;
 const PIDS   = [
   0x0001, 0x0004, 0x0005,   // Nano S (classic), Nano X (classic), Nano S+
-  0x1000, 0x4000, 0x5000,   // Nano-S, Nano-X, Nano-S-Plus (new PIDs — ElectrumABC b03bd41)
+  0x1000, 0x4000, 0x5000,   // Nano-S, Nano-X, Nano-S-Plus (new PIDs â€” ElectrumABC b03bd41)
   0x6000, 0x7000, 0x8000,   // Stax, Flex, Apex P
 ];
 
@@ -22,7 +21,7 @@ const BCH_PATH     = [0x8000002c, 0x80000091, 0x80000000, 0x00000000, 0x00000000
 // Account-level path for xpub: m/44'/145'/0'
 const ACCOUNT_PATH = [0x8000002c, 0x80000091, 0x80000000];
 
-// ── Binary helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ Binary helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function concat(...arrs) {
   const r = new Uint8Array(arrs.reduce((s, a) => s + a.length, 0));
   let o = 0;
@@ -53,7 +52,7 @@ function hexToBytes(hex) {
   return b;
 }
 function bytesToHex(b) {
-  return Array.from(b).map(x => x.toString(16).padStart(2, '0')).join('');
+  return Array.from(b).map((x: number) => x.toString(16).padStart(2, '0')).join('');
 }
 function encodePath(path) {
   const b = new Uint8Array(1 + path.length * 4);
@@ -63,10 +62,10 @@ function encodePath(path) {
   return b;
 }
 
-// ── HID framing ────────────────────────────────────────────────────────────────
+// â”€â”€ HID framing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Ledger HID: 64-byte packets, channel=0x0101, tag=0x05
-// Packet 0: [ch(2)] [tag(1)] [seq(2)] [apdu_len(2)] [data≤57]
-// Packet N: [ch(2)] [tag(1)] [seq(2)]               [data≤59]
+// Packet 0: [ch(2)] [tag(1)] [seq(2)] [apdu_len(2)] [dataâ‰¤57]
+// Packet N: [ch(2)] [tag(1)] [seq(2)]               [dataâ‰¤59]
 function wrapAPDU(apdu) {
   const pkts = [];
   let off = 0, seq = 0;
@@ -84,15 +83,15 @@ function wrapAPDU(apdu) {
   return pkts;
 }
 
-// ── Device exchange ────────────────────────────────────────────────────────────
+// â”€â”€ Device exchange â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function exchange(device, apduData) {
   for (const pkt of wrapAPDU(apduData)) await device.sendReport(0, pkt);
 
-  return new Promise((resolve, reject) => {
+  return new Promise<Uint8Array>((resolve, reject) => {
     let resp = null, total = 0, received = 0;
     const tOut = setTimeout(() => {
       device.removeEventListener('inputreport', handler);
-      reject(new Error('Ledger timeout — is the Bitcoin Cash app open and unlocked?'));
+      reject(new Error('Ledger timeout â€” is the Bitcoin Cash app open and unlocked?'));
     }, 30000);
 
     function handler(e) {
@@ -110,7 +109,7 @@ async function exchange(device, apduData) {
         const sw = (resp[resp.length - 2] << 8) | resp[resp.length - 1];
         if (sw === 0x6985) { reject(new Error('Ledger: request denied on device')); return; }
         if (sw === 0x6e00 || sw === 0x6d00) { reject(new Error('Ledger: open the Bitcoin Cash app on your device')); return; }
-        if (sw === 0x6b0c) { reject(new Error('Ledger: device is locked — enter PIN first')); return; }
+        if (sw === 0x6b0c) { reject(new Error('Ledger: device is locked â€” enter PIN first')); return; }
         if (sw !== 0x9000) { reject(new Error(`Ledger error 0x${sw.toString(16)}`)); return; }
         resolve(resp.slice(0, resp.length - 2));
       }
@@ -125,18 +124,18 @@ function apdu(ins, p1, p2, data = new Uint8Array(0)) {
   return concat(new Uint8Array([0xe0, ins, p1, p2, data.length]), data);
 }
 
-// ── Connect Ledger via WebHID ──────────────────────────────────────────────────
+// â”€â”€ Connect Ledger via WebHID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function connectLedger() {
-  if (!navigator.hid) throw new Error('WebHID not available — use Chrome or Edge');
+  if (!(navigator as any).hid) throw new Error('WebHID not available â€” use Chrome or Edge');
   const filters = PIDS.map(pid => ({ vendorId: VENDOR, productId: pid }));
-  const devs = await navigator.hid.requestDevice({ filters });
+  const devs = await (navigator as any).hid.requestDevice({ filters });
   if (!devs.length) throw new Error('No Ledger device selected');
   const dev = devs[0];
   if (!dev.opened) await dev.open();
   return dev;
 }
 
-// ── GET WALLET PUBLIC KEY (INS=0x40) ──────────────────────────────────────────
+// â”€â”€ GET WALLET PUBLIC KEY (INS=0x40) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // P1=0x00 no display | P2=0x03 CashAddr output format
 // Response: pubKeyLen(1) + pubKey + addrLen(1) + cashaddr + chainCode(32)
 async function getLedgerPubKey(device, path = BCH_PATH) {
@@ -150,10 +149,10 @@ async function getLedgerPubKey(device, path = BCH_PATH) {
   return { pubKey, addrRaw, chainCode };
 }
 
-// ── Build input data for HASH_TX_INPUT_START ────────────────────────────────
+// â”€â”€ Build input data for HASH_TX_INPUT_START â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Type 0x02 (BCH/segwit-like): embeds value, no GET_TRUSTED_INPUT needed
 // utxo: { txid: hex, vout: number, value: number|bigint }
-// scriptCode: Uint8Array (P2PKH scriptPubKey of signing addr) or null → empty script
+// scriptCode: Uint8Array (P2PKH scriptPubKey of signing addr) or null â†’ empty script
 function buildInputData(utxo, scriptCode) {
   const hash = hexToBytes(utxo.txid).reverse();     // txhash in LE
   const idx  = le32(utxo.vout);
@@ -163,24 +162,26 @@ function buildInputData(utxo, scriptCode) {
   return concat(new Uint8Array([0x02]), hash, idx, val, varint(sc.length), sc, seq);
 }
 
-// ── Sign BCH transaction on Ledger ────────────────────────────────────────────
+// â”€â”€ Sign BCH transaction on Ledger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Uses Ledger BIP143 mode (HASH_TX_INPUT_START P2=0x02)
 // One signing round per input (N rounds for N inputs)
 // In each round: all inputs streamed, only input[i] carries its scriptPubKey
 //
-// utxos:        [{txid, vout, value}]  — txid as hex string
+// utxos:        [{txid, vout, value}]  â€” txid as hex string
 // outputs:      [{value: number|BigInt, script: Uint8Array}]
 // scriptPubKey: Uint8Array OR array of Uint8Array (one per input)
 // path:         single path array OR array of path arrays (one per input)
 // changePath:   optional BIP32 path array for the change output (outputs[1])
-//               → sent via HASH_TX_INPUT_FINALIZE_FULL P1=0xFF so Ledger
+//               â†’ sent via HASH_TX_INPUT_FINALIZE_FULL P1=0xFF so Ledger
 //                 recognises the change as internal (no double confirmation)
-// Returns: array of Uint8Array — DER signatures with 0x41 sighash byte appended
+// Returns: array of Uint8Array â€” DER signatures with 0x41 sighash byte appended
 async function signLedgerTx(device, utxos, outputs, scriptPubKey, path = BCH_PATH) {
   const version = new Uint8Array([0x01, 0x00, 0x00, 0x00]);
   // Support per-input scripts and paths
   const getScript = Array.isArray(scriptPubKey) ? i => scriptPubKey[i] : () => scriptPubKey;
-  const getPath   = Array.isArray(path[0])      ? i => path[i]         : () => path;
+  const getPath: (i: number) => number[] = Array.isArray((path as unknown[])[0])
+    ? (i: number) => (path as unknown as number[][])[i]
+    : () => path as number[];
 
   // Serialise outputs once (reused for every signing round)
   const outBytes = concat(
@@ -195,9 +196,9 @@ async function signLedgerTx(device, utxos, outputs, scriptPubKey, path = BCH_PAT
 
   for (let sigIdx = 0; sigIdx < utxos.length; sigIdx++) {
 
-    // ── HASH_TX_INPUT_START — stream all inputs ──────────────────────────────
+    // â”€â”€ HASH_TX_INPUT_START â€” stream all inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     for (let j = 0; j < utxos.length; j++) {
-      // Only the input being signed carries the scriptCode; all others → empty
+      // Only the input being signed carries the scriptCode; all others â†’ empty
       const sc      = (j === sigIdx) ? getScript(sigIdx) : null;
       const inpData = buildInputData(utxos[j], sc);
 
@@ -216,7 +217,7 @@ async function signLedgerTx(device, utxos, outputs, scriptPubKey, path = BCH_PAT
       }
     }
 
-    // ── HASH_TX_INPUT_FINALIZE_FULL — stream outputs (max 255 bytes/chunk) ───
+    // â”€â”€ HASH_TX_INPUT_FINALIZE_FULL â€” stream outputs (max 255 bytes/chunk) â”€â”€â”€
     let pos = 0;
     while (pos < outBytes.length) {
       const chunk = outBytes.slice(pos, pos + 255);
@@ -227,7 +228,7 @@ async function signLedgerTx(device, utxos, outputs, scriptPubKey, path = BCH_PAT
       catch (e) { throw new Error(`FINALIZE_FULL r${sigIdx} @${pos}: ${e.message}`); }
     }
 
-    // ── HASH_SIGN — sign input[sigIdx] and retrieve DER signature ────────────
+    // â”€â”€ HASH_SIGN â€” sign input[sigIdx] and retrieve DER signature â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Data: path | 0x00 (no 2FA) | locktime LE32 | sighash_type (0x41 = BCH)
     const pathB    = encodePath(getPath(sigIdx));
     const signData = concat(pathB, new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00, 0x41]));
@@ -245,10 +246,10 @@ async function signLedgerTx(device, utxos, outputs, scriptPubKey, path = BCH_PAT
   return sigs;
 }
 
-// ── Build raw signed transaction ───────────────────────────────────────────────
+// â”€â”€ Build raw signed transaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // utxos:   [{txid, vout}]
-// sigs:    [Uint8Array] — one DER+sighash per input (from signLedgerTx)
-// pubKey:  Uint8Array(33) — compressed public key
+// sigs:    [Uint8Array] â€” one DER+sighash per input (from signLedgerTx)
+// pubKey:  Uint8Array(33) â€” compressed public key
 // outputs: [{value: number|BigInt, script: Uint8Array}]
 // Returns: hex string of the complete raw transaction
 function buildLedgerTx(utxos, sigs, pubKey, outputs) {
@@ -275,8 +276,8 @@ function buildLedgerTx(utxos, sigs, pubKey, outputs) {
   return bytesToHex(raw);
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-G.Ledger = { BCH_PATH, ACCOUNT_PATH, connectLedger, getLedgerPubKey, signLedgerTx, buildLedgerTx };
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+(G as any).Ledger = { BCH_PATH, ACCOUNT_PATH, connectLedger, getLedgerPubKey, signLedgerTx, buildLedgerTx };
 
 })(window);
 

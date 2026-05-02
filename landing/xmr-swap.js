@@ -24,7 +24,7 @@ import {
   deserializeAdaptorSig,
   serializeDLEQProof,
   deserializeDLEQProof
-} from "./xmr-swap-crypto.js?v=5";
+} from "./xmr-swap-crypto.js";
 import { secp256k1 } from "./lib/noble-curves.js";
 import { ed25519 } from "./lib/noble-curves.js";
 import { ripemd160 } from "./lib/noble-hashes.js";
@@ -176,7 +176,7 @@ class XmrSwap {
     this.steps = role === "bob" ? ["Key Exchange", "Lock BCH", "Verify XMR", "Send Adaptor Sig", "Recover XMR", "Complete"] : ["Key Exchange", "Wait BCH Lock", "Lock XMR", "Receive Adaptor", "Claim BCH", "Complete"];
     this.currentStep = 0;
   }
-  /* ── Step 1: Generate and exchange keys ── */
+  /* â”€â”€ Step 1: Generate and exchange keys â”€â”€ */
   generateKeys() {
     this.myKeys = generateCrossCurveKeypair();
     this.currentStep = 1;
@@ -216,7 +216,7 @@ class XmrSwap {
     else this.state = STATE.ALICE_KEYS_VERIFIED;
     return true;
   }
-  /* ── Step 2 (Bob): Lock BCH ── */
+  /* â”€â”€ Step 2 (Bob): Lock BCH â”€â”€ */
   prepareBchLock(currentBlockHeight) {
     if (this.role !== "bob") throw new Error("only Bob locks BCH");
     if (!this.myKeys || !this.theirKeys) throw new Error("keys not exchanged");
@@ -239,7 +239,7 @@ class XmrSwap {
     this.bchLockTxid = txid;
     this.bchLockVout = vout;
   }
-  /* ── Step 2 (Alice): Verify BCH lock ── */
+  /* â”€â”€ Step 2 (Alice): Verify BCH lock â”€â”€ */
   verifyBchLock(txHex, expectedAmount, expectedLocktime) {
     if (this.role !== "alice") throw new Error("only Alice verifies BCH lock");
     const bobPub33 = this.theirKeys.secp.pub;
@@ -254,7 +254,7 @@ class XmrSwap {
     this.currentStep = 2;
     return true;
   }
-  /* ── Step 3 (Alice): Lock XMR ── */
+  /* â”€â”€ Step 3 (Alice): Lock XMR â”€â”€ */
   prepareXmrLock() {
     if (this.role !== "alice") throw new Error("only Alice locks XMR");
     if (!this.sharedXmrAddress) throw new Error("shared address not computed");
@@ -270,7 +270,7 @@ class XmrSwap {
   setXmrLockTx(txid) {
     this.xmrLockTxid = txid;
   }
-  /* ── Step 3 (Bob): Verify XMR lock ── */
+  /* â”€â”€ Step 3 (Bob): Verify XMR lock â”€â”€ */
   verifyXmrLock(xmrTxConfirmed) {
     if (this.role !== "bob") throw new Error("only Bob verifies XMR lock");
     if (!xmrTxConfirmed) return false;
@@ -278,7 +278,7 @@ class XmrSwap {
     this.currentStep = 3;
     return true;
   }
-  /* ── Step 4 (Bob): Create and send adaptor signature ── */
+  /* â”€â”€ Step 4 (Bob): Create and send adaptor signature â”€â”€ */
   createAdaptorSig() {
     if (this.role !== "bob") throw new Error("only Bob creates adaptor sig");
     if (!this.swapMsg || !this.myKeys || !this.theirKeys) {
@@ -297,7 +297,7 @@ class XmrSwap {
     this.currentStep = 4;
     return serializeAdaptorSig(adaptorSig);
   }
-  /* ── Step 4 (Alice): Receive and verify adaptor sig ── */
+  /* â”€â”€ Step 4 (Alice): Receive and verify adaptor sig â”€â”€ */
   receiveAdaptorSig(adaptorSigJson) {
     if (this.role !== "alice") throw new Error("only Alice receives adaptor sig");
     const adaptorSig = deserializeAdaptorSig(adaptorSigJson);
@@ -305,7 +305,7 @@ class XmrSwap {
       this.theirKeys.secp.pub,
       // Bob's pubkey (signer)
       this.myKeys.secp.pub,
-      // Alice's pubkey (adaptor point) — wait, this is wrong
+      // Alice's pubkey (adaptor point) â€” wait, this is wrong
       this.swapMsg,
       adaptorSig
     );
@@ -318,7 +318,7 @@ class XmrSwap {
     this.currentStep = 4;
     return true;
   }
-  /* ── Step 5 (Alice): Decrypt adaptor sig and claim BCH ── */
+  /* â”€â”€ Step 5 (Alice): Decrypt adaptor sig and claim BCH â”€â”€ */
   decryptAndClaim() {
     if (this.role !== "alice") throw new Error("only Alice claims BCH");
     if (!this.adaptorSig || !this.myKeys) throw new Error("missing adaptor sig");
@@ -358,7 +358,7 @@ class XmrSwap {
       pushData(redeemScript)
     );
   }
-  /* ── Step 6 (Bob): Recover Alice's secret from on-chain sig ── */
+  /* â”€â”€ Step 6 (Bob): Recover Alice's secret from on-chain sig â”€â”€ */
   recoverSecret(onChainSig64) {
     if (this.role !== "bob") throw new Error("only Bob recovers");
     if (!this.adaptorSig) throw new Error("missing adaptor sig");
@@ -389,7 +389,7 @@ class XmrSwap {
     this.currentStep = 5;
     return this.recoveredSecret;
   }
-  /* ── Step 6 (Bob): Sweep XMR with combined key ── */
+  /* â”€â”€ Step 6 (Bob): Sweep XMR with combined key â”€â”€ */
   computeXmrSweepKey() {
     if (this.role !== "bob") throw new Error("only Bob sweeps XMR");
     if (!this.recoveredSecret) throw new Error("secret not recovered");
@@ -409,7 +409,7 @@ class XmrSwap {
       address: this.sharedXmrAddress.address
     };
   }
-  /* ── Serialization for persistence ── */
+  /* â”€â”€ Serialization for persistence â”€â”€ */
   serialize() {
     return JSON.stringify({
       role: this.role,

@@ -1,13 +1,13 @@
-// @ts-nocheck
-/* ══════════════════════════════════════════════════════════════
-   chains.js — Unified blockchain data-fetching module
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   chains.js â€” Unified blockchain data-fetching module
    All balance, price, history, and block-height fetchers
    for 00 Protocol wallet (0penw0rld.com)
-   ══════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 'use strict';
+// Expose chain metadata globally (internal alias keeps IntelliSense)
 
-/* ── Chain Metadata Registry ── */
-window.CHAINS = Object.freeze({
+/* â”€â”€ Chain Metadata Registry â”€â”€ */
+const CHAINS = Object.freeze({
   bch:  { name:'Bitcoin Cash',  ticker:'BCH',  decimals:8,  color:'#0AC18E', icon:'icons/bch.png',  apiType:'electrum' },
   sbch: { name:'Stealth BCH',   ticker:'BCH',  decimals:8,  color:'#BF5AF2', icon:'icons/bch.png',  apiType:'none' },
   btc:  { name:'Bitcoin',       ticker:'BTC',  decimals:8,  color:'#F7931A', icon:'icons/btc.png',  apiType:'electrum' },
@@ -27,7 +27,9 @@ window.CHAINS = Object.freeze({
   xlm:  { name:'Stellar',       ticker:'XLM',  decimals:7,  color:'#14B6E7', icon:'icons/xlm.png',  apiType:'xlm',   rpc:'https://horizon.stellar.org' },
 });
 
-/* ── Endpoint Resolution ── */
+(window as any).CHAINS = CHAINS;
+
+/* â”€â”€ Endpoint Resolution â”€â”€ */
 function _ep(chain) {
   // AVAX and SOL must use nginx proxy (CORS blocked on direct URLs)
   if (chain === 'avax' || chain === 'sol') return CHAINS[chain]?.rpc || '';
@@ -37,7 +39,7 @@ function _ep(chain) {
   return (custom && custom !== 'undefined' && custom !== 'null') ? custom : (CHAINS[chain]?.rpc || '');
 }
 
-/* ── Generic JSON-RPC helper ── */
+/* â”€â”€ Generic JSON-RPC helper â”€â”€ */
 let _rpcId = 1;
 async function _jsonRpc(url, method, params) {
   const r = await fetch(url, {
@@ -50,18 +52,18 @@ async function _jsonRpc(url, method, params) {
   return j.result;
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BALANCE FETCHERS
-   ══════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* ── EVM: ETH, BNB, AVAX ── */
+/* â”€â”€ EVM: ETH, BNB, AVAX â”€â”€ */
 async function _evmBalance(chain, addr) {
   const rpc = _ep(chain);
   const hex = await _jsonRpc(rpc, 'eth_getBalance', [addr, 'latest']);
   return { balance: BigInt(hex).toString(), loaded: true };
 }
 
-/* ── ERC-20: USDC, USDT ── */
+/* â”€â”€ ERC-20: USDC, USDT â”€â”€ */
 async function _erc20Balance(chain, addr) {
   const rpc = _ep('eth');
   const contract = CHAINS[chain].contract;
@@ -70,7 +72,7 @@ async function _erc20Balance(chain, addr) {
   return { balance: parseInt(hex, 16) || 0, loaded: true };
 }
 
-/* ── Polygon ERC20 (USDC, USDC.e) ── */
+/* â”€â”€ Polygon ERC20 (USDC, USDC.e) â”€â”€ */
 async function _erc20PolygonBalance(chain, addr) {
   const rpc = _ep('matic') || '/polygon-rpc/';
   const contract = CHAINS[chain].contract;
@@ -79,14 +81,14 @@ async function _erc20PolygonBalance(chain, addr) {
   return { balance: parseInt(hex, 16) || 0, loaded: true };
 }
 
-/* ── Solana ── */
+/* â”€â”€ Solana â”€â”€ */
 async function _solBalance(addr) {
   const rpc = _ep('sol');
   const res = await _jsonRpc(rpc, 'getBalance', [addr]);
   return { balance: res.value || 0, loaded: true };
 }
 
-/* ── TRON ── */
+/* â”€â”€ TRON â”€â”€ */
 async function _trxBalance(addr) {
   const rpc = _ep('trx');
   const r = await fetch(`${rpc}/v1/accounts/${addr}`);
@@ -95,7 +97,7 @@ async function _trxBalance(addr) {
   return { balance: bal, loaded: true };
 }
 
-/* ── Stellar ── */
+/* â”€â”€ Stellar â”€â”€ */
 async function _xlmBalance(addr) {
   const rpc = _ep('xlm');
   const r = await fetch(`${rpc}/accounts/${addr}`);
@@ -106,7 +108,7 @@ async function _xlmBalance(addr) {
   return { balance: bal, loaded: true };
 }
 
-/* ── XRP (WSS one-shot) ── */
+/* â”€â”€ XRP (WSS one-shot) â”€â”€ */
 async function _xrpBalance(addr) {
   const rpc = _ep('xrp');
   return new Promise((resolve) => {
@@ -126,7 +128,7 @@ async function _xrpBalance(addr) {
   });
 }
 
-/* ── LTC (REST — litecoinspace.org) ── */
+/* â”€â”€ LTC (REST â€” litecoinspace.org) â”€â”€ */
 async function _ltcBalance(addr) {
   const rpc = _ep('ltc');
   const r = await fetch(`${rpc}/address/${addr}`);
@@ -151,12 +153,12 @@ async function _ltcBalance(addr) {
   return { balance: bal, loaded: true, utxos };
 }
 
-/* ── Electrum (BCH, BTC) — delegates to SharedWorker ── */
+/* â”€â”€ Electrum (BCH, BTC) â€” delegates to SharedWorker â”€â”€ */
 async function _electrumBalance(chain, scriptHash) {
   const caller = chain === 'bch' ? window._fvCall : window._btcCall;
   if (!caller) return { balance: 0, loaded: false };
   try {
-    let allUtxos = [];
+    let allUtxos: any[] = [];
     // For BCH: scan ALL HD addresses (receive + change) for complete balance
     if (chain === 'bch' && window._hdGetAllScriptHashes) {
       const scriptHashes = window._hdGetAllScriptHashes();
@@ -168,17 +170,17 @@ async function _electrumBalance(chain, scriptHash) {
           if (Array.isArray(utxos)) allUtxos.push(...utxos);
         }
       } else {
-        allUtxos = await caller('blockchain.scripthash.listunspent', [scriptHash]) || [];
+        allUtxos = (await caller('blockchain.scripthash.listunspent', [scriptHash]) as any[]) || [];
       }
     } else {
-      allUtxos = await caller('blockchain.scripthash.listunspent', [scriptHash]) || [];
+      allUtxos = (await caller('blockchain.scripthash.listunspent', [scriptHash]) as any[]) || [];
     }
     const bal = allUtxos.reduce((s, u) => s + (u.value || 0), 0);
     return { balance: bal, loaded: true, utxos: allUtxos };
   } catch { return { balance: 0, loaded: false }; }
 }
 
-/* ── XMR — reads cached scan result ── */
+/* â”€â”€ XMR â€” reads cached scan result â”€â”€ */
 function _xmrBalance() {
   try {
     const raw = localStorage.getItem('00_xmr_scan');
@@ -188,11 +190,11 @@ function _xmrBalance() {
   } catch { return { balance: '0', loaded: false }; }
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    chainsRefreshOne(chain, addr)
    Returns: { balance, loaded, utxos? }
-   ══════════════════════════════════════════════════════════════ */
-window.chainsRefreshOne = async function(chain, addr) {
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+(window as any).chainsRefreshOne = async function(chain, addr) {
   if (!addr && chain !== 'xmr' && chain !== 'sbch') return { balance: 0, loaded: false };
   try {
     const meta = CHAINS[chain];
@@ -216,16 +218,16 @@ window.chainsRefreshOne = async function(chain, addr) {
   }
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    chainsRefreshAll(addresses)
    addresses = { bch: 'bitcoincash:q...', btc: '1...', eth: '0x...', ... }
    For electrum chains, pass scriptHash instead of address
    Returns: { bch: {balance, loaded}, btc: {balance, loaded}, ... }
    Also persists to localStorage['00_balances']
-   ══════════════════════════════════════════════════════════════ */
-window.chainsRefreshAll = async function(addresses) {
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+(window as any).chainsRefreshAll = async function(addresses) {
   const chains = Object.keys(addresses).filter(c => CHAINS[c]);
-  const results = {};
+  const results: Record<string, any> = {};
 
   // Launch all fetches in parallel
   const settled = await Promise.allSettled(
@@ -241,27 +243,27 @@ window.chainsRefreshAll = async function(addresses) {
   return results;
 };
 
-/* ── Persist balances to localStorage ── */
+/* â”€â”€ Persist balances to localStorage â”€â”€ */
 function _persistBalances(results) {
   let prev = {};
   try { prev = JSON.parse(localStorage.getItem('00_balances') || '{}'); } catch {}
 
   const obj = { ...prev, ts: Date.now() };
   for (const [chain, res] of Object.entries(results)) {
-    if (res.loaded) {
-      obj[chain] = typeof res.balance === 'string' ? res.balance : res.balance;
+    if ((res as any).loaded) {
+      obj[chain] = (res as any).balance;
     }
     // If not loaded, keep previous value (don't overwrite with 0)
   }
   localStorage.setItem('00_balances', JSON.stringify(obj));
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    PRICE FETCHING
    chainsGetPrices()
    Returns: { bch: {price, change24h}, btc: {price, change24h}, ... }
    Cached 5 min in localStorage
-   ══════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const _PRICE_TTL = 5 * 60 * 1000;
 const _KRAKEN_PAIRS = 'BCHUSD,XBTUSD,ETHUSD,XMRUSD,USDCUSD,USDTUSD,LTCUSD,SOLUSD,XRPUSD,TRXUSD,XLMUSD';
 const _KRAKEN_MAP = {
@@ -270,7 +272,7 @@ const _KRAKEN_MAP = {
   XXRPZUSD:'xrp', TRXUSD:'trx', XXLMZUSD:'xlm'
 };
 
-window.chainsGetPrices = async function() {
+(window as any).chainsGetPrices = async function() {
   // Check cache
   const ck = '00_dash_prices_usd';
   try {
@@ -281,7 +283,7 @@ window.chainsGetPrices = async function() {
     }
   } catch {}
 
-  const out = {};
+  const out: Record<string, { price: number; change24h: number }> = {};
 
   // Kraken (BCH, BTC, ETH, XMR, USDC, USDT, LTC, SOL, XRP, TRX, XLM)
   try {
@@ -292,42 +294,42 @@ window.chainsGetPrices = async function() {
       for (const [k, v] of Object.entries(res)) {
         const sym = _KRAKEN_MAP[k];
         if (!sym) continue;
-        const price = parseFloat(v.c[0]) || 0;
-        const vwap24 = parseFloat(v.p[1]) || 0;
+        const price = parseFloat((v as any).c[0]) || 0;
+        const vwap24 = parseFloat((v as any).p[1]) || 0;
         out[sym] = { price, change24h: vwap24 ? ((price - vwap24) / vwap24 * 100) : 0 };
       }
     }
   } catch (e) { console.warn('[chains] Kraken price fetch failed:', e.message); }
 
-  // CryptoCompare (BNB, AVAX — not on Kraken)
+  // CryptoCompare (BNB, AVAX â€” not on Kraken)
   try {
     const r = await fetch('https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BNB,AVAX,MATIC&tsyms=USD');
     if (r.ok) {
       const j = await r.json();
       const raw = j.RAW || {};
       for (const [sym, data] of Object.entries(raw)) {
-        const d = data.USD;
+        const d = (data as any).USD;
         out[sym.toLowerCase()] = { price: d.PRICE || 0, change24h: d.CHANGEPCT24HOUR || 0 };
       }
     }
   } catch (e) { console.warn('[chains] CryptoCompare price fetch failed:', e.message); }
 
   // Defaults
-  if (!out.usdc) out.usdc = { price: 1, change24h: 0 };
-  if (!out.usdt) out.usdt = { price: 1, change24h: 0 };
+  if (!(out as any).usdc) (out as any).usdc = { price: 1, change24h: 0 };
+  if (!(out as any).usdt) (out as any).usdt = { price: 1, change24h: 0 };
 
   // Cache
   try { localStorage.setItem(ck, JSON.stringify({ data: out, _ts: Date.now() })); } catch {}
   return out;
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    TRANSACTION HISTORY
    chainsGetHistory(chain, addr, limit?)
    Returns: [{txid, chain, dir, amount, height, timestamp, confirmations}]
-   ══════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
-/* ── TRX History ── */
+/* â”€â”€ TRX History â”€â”€ */
 async function _trxHistory(addr, limit) {
   const rpc = _ep('trx');
   const r = await fetch(`${rpc}/v1/accounts/${addr}/transactions?limit=${limit}&order_by=block_timestamp,desc`);
@@ -361,7 +363,7 @@ function _trxBase58ToHex(addr) {
   return hex.slice(0, -8).toLowerCase(); // strip 4-byte checksum
 }
 
-/* ── XLM History ── */
+/* â”€â”€ XLM History â”€â”€ */
 async function _xlmHistory(addr, limit) {
   const rpc = _ep('xlm');
   const r = await fetch(`${rpc}/accounts/${addr}/operations?order=desc&limit=${limit}`);
@@ -380,7 +382,7 @@ async function _xlmHistory(addr, limit) {
     }));
 }
 
-/* ── LTC History ── */
+/* â”€â”€ LTC History â”€â”€ */
 async function _ltcHistory(addr, limit) {
   const rpc = _ep('ltc');
   const r = await fetch(`${rpc}/address/${addr}/txs`);
@@ -406,7 +408,7 @@ async function _ltcHistory(addr, limit) {
   });
 }
 
-/* ── EVM History (ETH, BNB, AVAX) ── */
+/* â”€â”€ EVM History (ETH, BNB, AVAX) â”€â”€ */
 async function _evmHistory(chain, addr, limit) {
   const endpoints = {
     eth: 'https://eth.blockscout.com/api',
@@ -432,7 +434,7 @@ async function _evmHistory(chain, addr, limit) {
   } catch { return []; }
 }
 
-/* ── SOL History ── */
+/* â”€â”€ SOL History â”€â”€ */
 async function _solHistory(addr, limit) {
   const rpc = _ep('sol');
   try {
@@ -463,7 +465,7 @@ async function _solHistory(addr, limit) {
   } catch { return []; }
 }
 
-/* ── XRP History ── */
+/* â”€â”€ XRP History â”€â”€ */
 async function _xrpHistory(addr, limit) {
   const rpc = _ep('xrp');
   return new Promise((resolve) => {
@@ -486,7 +488,7 @@ async function _xrpHistory(addr, limit) {
             dir: t.tx.Account === addr ? 'out' : 'in',
             amount: typeof t.tx.Amount === 'string' ? parseInt(t.tx.Amount) : 0,
             height: t.tx.ledger_index || 0,
-            timestamp: (t.tx.date || 0) + 946684800, // Ripple epoch → Unix
+            timestamp: (t.tx.date || 0) + 946684800, // Ripple epoch â†’ Unix
           }));
         resolve(txs);
       } catch { resolve([]); }
@@ -496,7 +498,7 @@ async function _xrpHistory(addr, limit) {
   });
 }
 
-window.chainsGetHistory = async function(chain, addr, limit = 20) {
+(window as any).chainsGetHistory = async function(chain, addr, limit = 20) {
   if (!addr) return [];
   try {
     switch (chain) {
@@ -506,7 +508,7 @@ window.chainsGetHistory = async function(chain, addr, limit = 20) {
       case 'eth': case 'bnb': case 'avax': case 'matic': return await _evmHistory(chain, addr, limit);
       case 'sol':  return await _solHistory(addr, limit);
       case 'xrp':  return await _xrpHistory(addr, limit);
-      // BCH, BTC, XMR — handled by wallet.html (complex parsing, SharedWorker)
+      // BCH, BTC, XMR â€” handled by wallet.html (complex parsing, SharedWorker)
       default: return [];
     }
   } catch (e) {
@@ -515,8 +517,8 @@ window.chainsGetHistory = async function(chain, addr, limit = 20) {
   }
 };
 
-/* ── Persist TX history (merge by chain) ── */
-window.chainsPersistHistory = function(chain, txs) {
+/* â”€â”€ Persist TX history (merge by chain) â”€â”€ */
+(window as any).chainsPersistHistory = function(chain, txs) {
   let existing = [];
   try { existing = JSON.parse(localStorage.getItem('00_tx_history') || '[]'); } catch {}
   // Remove old entries for this chain
@@ -529,15 +531,15 @@ window.chainsPersistHistory = function(chain, txs) {
   localStorage.setItem('00_tx_history', JSON.stringify(merged.slice(0, 500)));
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    BLOCK HEIGHT (for confirmation counts)
-   chainsBlockHeight(chain) → Promise<number>
+   chainsBlockHeight(chain) â†’ Promise<number>
    Cached 30s in memory
-   ══════════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const _heightCache = {};
 const _HEIGHT_TTL = 30000;
 
-window.chainsBlockHeight = async function(chain) {
+(window as any).chainsBlockHeight = async function(chain) {
   const cached = _heightCache[chain];
   if (cached && Date.now() - cached.ts < _HEIGHT_TTL) return cached.height;
 
@@ -548,7 +550,7 @@ window.chainsBlockHeight = async function(chain) {
         const caller = chain === 'bch' ? window._fvCall : window._btcCall;
         if (caller) {
           const res = await caller('blockchain.headers.subscribe', []);
-          height = res?.height || 0;
+          height = (res as any)?.height || 0;
         }
         break;
       }
@@ -604,10 +606,10 @@ window.chainsBlockHeight = async function(chain) {
   return height;
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    HELPER: Format coin amount
-   ══════════════════════════════════════════════════════════════ */
-window.chainsFormatAmount = function(chain, rawAmount) {
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+(window as any).chainsFormatAmount = function(chain, rawAmount) {
   const meta = CHAINS[chain];
   if (!meta) return '0';
   const val = Number(rawAmount) / Math.pow(10, meta.decimals);

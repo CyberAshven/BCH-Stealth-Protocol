@@ -1,12 +1,11 @@
-// @ts-nocheck
-// 0penw0rld Shell — lang switcher, app switcher, disconnect, endpoint settings, desktop sidebar
+﻿// 0penw0rld Shell â€” lang switcher, app switcher, disconnect, endpoint settings, desktop sidebar
 (function () {
 'use strict';
 
 // SPA mode detection: v2.html uses hash-based routing
 const IS_SPA = !!(document.getElementById('view-container-desktop') || window.location.pathname.endsWith('v2.html'));
 
-// URL map: html filename → SPA hash path
+// URL map: html filename â†’ SPA hash path
 const SPA_ROUTES = {
   'index.html': '#/dashboard', 'wallet.html': '#/wallet', 'chat.html': '#/chat',
   'pay.html': '#/pay', 'swap.html': '#/swap', 'dex.html': '#/dex', 'loan.html': '#/loan',
@@ -40,13 +39,13 @@ const APPS = [
   { name: '00 Elon', url: 'elon.html' },
 ];
 
-// ── Desktop UI ─────────────────────────────────────────────────
+// â”€â”€ Desktop UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const APP_ICONS = {
-  'index.html': '⌂', 'wallet.html': '<img src="icons/bch-wallet.png" style="width:18px;height:18px">', 'chat.html': '<img src="icons/chat.png" style="width:18px;height:18px">', 'pay.html': '<img src="icons/pay.png" style="width:18px;height:18px">',
-  'swap.html': '⇄', 'dex.html': '<img src="icons/dex.png" style="width:18px;height:18px">', 'loan.html': '<img src="icons/loan.png" style="width:18px;height:18px">',
-  'id.html': '◉', 'mesh.html': '⬡',
-  'onion.html': '<img src="icons/onion.png" style="width:18px;height:18px">', 'vault.html': '<img src="icons/vault.png" style="width:18px;height:18px">', 'fusion.html': '⚗', 'sub.html': '<img src="icons/sub.png" style="width:18px;height:18px">', 'analyse.html': '◪', 'config.html': '⚙',
-  'bet.html': '🎲', 'elon.html': '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">',
+  'index.html': 'âŒ‚', 'wallet.html': '<img src="icons/bch-wallet.png" style="width:18px;height:18px">', 'chat.html': '<img src="icons/chat.png" style="width:18px;height:18px">', 'pay.html': '<img src="icons/pay.png" style="width:18px;height:18px">',
+  'swap.html': 'â‡„', 'dex.html': '<img src="icons/dex.png" style="width:18px;height:18px">', 'loan.html': '<img src="icons/loan.png" style="width:18px;height:18px">',
+  'id.html': 'â—‰', 'mesh.html': 'â¬¡',
+  'onion.html': '<img src="icons/onion.png" style="width:18px;height:18px">', 'vault.html': '<img src="icons/vault.png" style="width:18px;height:18px">', 'fusion.html': 'âš—', 'sub.html': '<img src="icons/sub.png" style="width:18px;height:18px">', 'analyse.html': 'â—ª', 'config.html': 'âš™',
+  'bet.html': 'ðŸŽ²', 'elon.html': '<img src="https://pbs.twimg.com/profile_images/2035314704307081216/71U1ftM3_200x200.jpg" style="width:18px;height:18px;border-radius:50%;object-fit:cover">',
 };
 const APP_SECTIONS = {
   Overview: ['index.html'],
@@ -64,11 +63,11 @@ function getTheme() { return localStorage.getItem('00_theme') || 'dark'; }
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('00_theme', theme);
-  const meta = document.querySelector('meta[name="theme-color"]');
+  const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
   if (meta) meta.content = theme === 'dark' ? '#0c0d12' : '#f5f6f8';
   const icon = document.getElementById('dt-theme-icon');
   const label = document.getElementById('dt-theme-label');
-  if (icon) icon.textContent = theme === 'dark' ? '☀' : '☾';
+  if (icon) icon.textContent = theme === 'dark' ? 'â˜€' : 'â˜¾';
   if (label) label.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
   // Override hacker green with BCH green on desktop
   if (IS_DESKTOP) {
@@ -88,16 +87,16 @@ const LANGS = ['EN', 'FR', 'ES', 'CN'];
 
 const T = {
   EN: { disc: 'DISCONNECT', apps: 'APPS', confirm: 'Clear all data and disconnect?', connect: 'CONNECT' },
-  FR: { disc: 'DÉCONNECTER', apps: 'APPS', confirm: 'Effacer les données et déconnecter ?', connect: 'CONNECTER' },
-  ES: { disc: 'DESCONECTAR', apps: 'APPS', confirm: '¿Borrar datos y desconectar?', connect: 'CONECTAR' },
-  CN: { disc: '断开连接',    apps: '应用', confirm: '清除数据并断开连接？', connect: '连接' },
+  FR: { disc: 'DÃ‰CONNECTER', apps: 'APPS', confirm: 'Effacer les donnÃ©es et dÃ©connecter ?', connect: 'CONNECTER' },
+  ES: { disc: 'DESCONECTAR', apps: 'APPS', confirm: 'Â¿Borrar datos y desconectar?', connect: 'CONECTAR' },
+  CN: { disc: 'æ–­å¼€è¿žæŽ¥',    apps: 'åº”ç”¨', confirm: 'æ¸…é™¤æ•°æ®å¹¶æ–­å¼€è¿žæŽ¥ï¼Ÿ', connect: 'è¿žæŽ¥' },
 };
 
 function isConnected() {
   return !!(localStorage.getItem('00_wif') || localStorage.getItem('00_pub') || localStorage.getItem('00_ledger') || localStorage.getItem('00wallet_vault') || localStorage.getItem('00_wc_session') || localStorage.getItem('00_session_auth'));
 }
 
-// ── Endpoint defaults & config ────────────────────────────────
+// â”€â”€ Endpoint defaults & config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EP_DEFAULTS = {
   fulcrum:      ['wss://bch.imaginary.cash:50004','wss://electrum.imaginary.cash:50004','wss://bch.loping.net:50004','wss://bch.soul-dev.com:50004','wss://electron.jochen-hoenicke.de:51004','wss://electrumx-bch.cryptonermal.net:50004','wss://cashnode.bch.ninja:50004','wss://electroncash.dk:50004'],
   btc_electrum: ['wss://e2.keff.org:50004','wss://fulcrum.grey.pw:50004','wss://btc.electroncash.dk:50004','wss://electrum.petrkr.net:50004','wss://bitcoinserver.nl:50004','wss://mempool.8333.mobi:50004'],
@@ -151,10 +150,10 @@ function t(k) { return (T[_lang] || T.EN)[k] || k; }
 function setLang(lang) {
   _lang = lang;
   localStorage.setItem('00_lang', lang);
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t((el as HTMLElement).dataset.i18n); });
   document.querySelectorAll('.shell-lang-cur').forEach(el => { el.textContent = lang; });
   document.querySelectorAll('.shell-lang-opt').forEach(opt => {
-    opt.classList.toggle('active', opt.dataset.lang === lang);
+    opt.classList.toggle('active', (opt as HTMLElement).dataset.lang === lang);
   });
   if (typeof window._onLangChange === 'function') window._onLangChange(lang);
 }
@@ -169,17 +168,17 @@ function disconnect() {
     ov.onclick = e => { if (e.target === ov) ov.classList.remove('open'); };
     ov.innerHTML = `
       <div class="disc-modal">
-        <div class="disc-icon">⚠</div>
+        <div class="disc-icon">âš </div>
         <div class="disc-title">${t('disc')}</div>
         <div class="disc-msg">${t('confirm')}</div>
         <div class="disc-actions">
-          <button class="disc-cancel" id="disc-cancel">${_lang === 'FR' ? 'Annuler' : _lang === 'ES' ? 'Cancelar' : _lang === 'CN' ? '取消' : 'Cancel'}</button>
-          <button class="disc-confirm" id="disc-ok">${_lang === 'FR' ? 'Confirmer' : _lang === 'ES' ? 'Confirmar' : _lang === 'CN' ? '确认' : 'Confirm'}</button>
+          <button class="disc-cancel" id="disc-cancel">${_lang === 'FR' ? 'Annuler' : _lang === 'ES' ? 'Cancelar' : _lang === 'CN' ? 'å–æ¶ˆ' : 'Cancel'}</button>
+          <button class="disc-confirm" id="disc-ok">${_lang === 'FR' ? 'Confirmer' : _lang === 'ES' ? 'Confirmar' : _lang === 'CN' ? 'ç¡®è®¤' : 'Confirm'}</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
-    ov.querySelector('#disc-cancel').onclick = () => ov.classList.remove('open');
-    ov.querySelector('#disc-ok').onclick = async () => {
+    (ov.querySelector('#disc-cancel') as HTMLButtonElement).onclick = () => ov.classList.remove('open');
+    (ov.querySelector('#disc-ok') as HTMLButtonElement).onclick = async () => {
       localStorage.clear();
       sessionStorage.clear();
       if ('serviceWorker' in navigator) {
@@ -202,22 +201,22 @@ window._shellSetLang    = setLang;
 window._shellDisconnect = disconnect;
 
 /** Refresh the sidebar connect/disconnect button based on current auth state */
-function _refreshConnectBtn(btn) {
+function _refreshConnectBtn(btn?) {
   btn = btn || document.getElementById('sidebar-connect-btn');
   if (!btn) return;
   if (isConnected()) {
     btn.className = 'sidebar-bottom-item danger';
-    btn.innerHTML = '<span class="sidebar-bottom-icon">⏻</span><span class="sidebar-label">' + t('disc') + '</span>';
+    btn.innerHTML = '<span class="sidebar-bottom-icon">â»</span><span class="sidebar-label">' + t('disc') + '</span>';
     btn.onclick = disconnect;
   } else {
     btn.className = 'sidebar-bottom-item';
-    btn.innerHTML = '<span class="sidebar-bottom-icon">⏻</span><span class="sidebar-label">' + t('connect') + '</span>';
+    btn.innerHTML = '<span class="sidebar-bottom-icon">â»</span><span class="sidebar-label">' + t('connect') + '</span>';
     btn.onclick = () => { window.location.hash = '#/auth'; };
   }
 }
-window._shellRefreshAuth = _refreshConnectBtn;
+window._shellRefreshAuth = () => _refreshConnectBtn();
 
-// ── CSS ────────────────────────────────────────────────────────
+// â”€â”€ CSS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const st = document.createElement('style');
 st.textContent = `
   .shell-controls {
@@ -260,7 +259,7 @@ st.textContent = `
     border-color: rgba(255,60,60,.6); color: rgba(255,110,110,.95);
     box-shadow: 0 0 8px rgba(255,40,40,.12);
   }
-  /* ── Settings modal ── */
+  /* â”€â”€ Settings modal â”€â”€ */
   .ep-overlay {
     display:none; position:fixed; inset:0; z-index:10000;
     background:rgba(0,0,0,.85); backdrop-filter:blur(6px);
@@ -315,7 +314,7 @@ st.textContent = `
     font-size:10px; letter-spacing:1px; cursor:pointer; transition:.15s;
   }
   .ep-close:hover { border-color:rgba(0,255,65,.4); color:#00ff41; }
-  /* ── Disconnect confirm modal ── */
+  /* â”€â”€ Disconnect confirm modal â”€â”€ */
   .disc-overlay {
     display:none; position:fixed; inset:0; z-index:10001;
     background:var(--dt-overlay, rgba(0,0,0,.85)); backdrop-filter:blur(8px);
@@ -354,7 +353,7 @@ st.textContent = `
     font-size:8px; color:rgba(0,255,65,.2); margin-top:12px;
     letter-spacing:.5px; text-align:center;
   }
-  /* ── iOS Home Indicator pill ── */
+  /* â”€â”€ iOS Home Indicator pill â”€â”€ */
   .home-indicator {
     flex-shrink: 0;
     display: flex;
@@ -383,7 +382,7 @@ st.textContent = `
 `;
 document.head.appendChild(st);
 
-// ── Settings modal ────────────────────────────────────────────
+// â”€â”€ Settings modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function buildSettingsModal() {
   const overlay = document.createElement('div');
   overlay.className = 'ep-overlay';
@@ -493,29 +492,29 @@ function buildSettingsModal() {
       <div class="ep-note">changes apply on page reload</div>
     </div>`;
 
-  overlay.querySelector('#ep-btn-close').onclick = () => overlay.classList.remove('open');
+  (overlay.querySelector('#ep-btn-close') as HTMLButtonElement).onclick = () => overlay.classList.remove('open');
 
   // Backup buttons (only exist for local wallets)
-  const expBtn = overlay.querySelector('#ep-btn-export');
+  const expBtn = overlay.querySelector('#ep-btn-export') as HTMLButtonElement | null;
   if (expBtn) {
     expBtn.onclick = () => { if (window.exportBackup) window.exportBackup(); else window.location.href = 'wallet.html?action=exportBackup'; };
-    const impBtn = overlay.querySelector('#ep-btn-import');
-    const fileIn = overlay.querySelector('#ep-backup-file');
+    const impBtn = overlay.querySelector('#ep-btn-import') as HTMLButtonElement;
+    const fileIn = overlay.querySelector('#ep-backup-file') as HTMLInputElement;
     impBtn.onclick = () => { if (window.importBackup) fileIn.click(); else window.location.href = 'wallet.html?action=importBackup'; };
-    fileIn.onchange = function() { if (this.files[0] && window.importBackup) window.importBackup(this.files[0]); this.value = ''; };
-    const keysBtn = overlay.querySelector('#ep-btn-keys');
+    fileIn.onchange = () => { if (fileIn.files?.[0] && window.importBackup) window.importBackup(fileIn.files[0]); fileIn.value = ''; };
+    const keysBtn = overlay.querySelector('#ep-btn-keys') as HTMLButtonElement | null;
     if (keysBtn) keysBtn.onclick = () => { overlay.classList.remove('open'); if (window.openExportKeys) window.openExportKeys(); else window.location.href = 'wallet.html?action=exportKeys'; };
   }
 
-  overlay.querySelector('#ep-btn-save').onclick = () => {
+  (overlay.querySelector('#ep-btn-save') as HTMLButtonElement).onclick = () => {
     const lines = s => s.split('\n').map(l => l.trim()).filter(l => l.startsWith('wss://'));
-    const fulcrum      = lines(overlay.querySelector('#ep-fulcrum').value);
-    const btcElectrum  = lines(overlay.querySelector('#ep-btc-electrum').value);
-    const relays       = lines(overlay.querySelector('#ep-relays').value);
-    const ethRpc       = overlay.querySelector('#ep-eth-rpc').value.trim();
-    const indexer = overlay.querySelector('#ep-indexer').value.trim();
-    const midgard = overlay.querySelector('#ep-midgard').value.trim();
-    const meta    = overlay.querySelector('#ep-meta').value.trim();
+    const fulcrum = lines((overlay.querySelector('#ep-fulcrum') as HTMLTextAreaElement).value);
+    const btcElectrum = lines((overlay.querySelector('#ep-btc-electrum') as HTMLTextAreaElement).value);
+    const relays = lines((overlay.querySelector('#ep-relays') as HTMLTextAreaElement).value);
+    const ethRpc = (overlay.querySelector('#ep-eth-rpc') as HTMLInputElement).value.trim();
+    const indexer = (overlay.querySelector('#ep-indexer') as HTMLInputElement).value.trim();
+    const midgard = (overlay.querySelector('#ep-midgard') as HTMLInputElement).value.trim();
+    const meta = (overlay.querySelector('#ep-meta') as HTMLInputElement).value.trim();
     if (fulcrum.length) localStorage.setItem('00_ep_fulcrum', JSON.stringify(fulcrum));
     else localStorage.removeItem('00_ep_fulcrum');
     if (btcElectrum.length) localStorage.setItem('00_ep_btc_electrum', JSON.stringify(btcElectrum));
@@ -531,7 +530,7 @@ function buildSettingsModal() {
     else localStorage.removeItem('00_ep_eth_rpc');
     // Save new chain RPCs
     ['bnb_rpc','avax_rpc','sol_rpc','trx_rpc','xrp_rpc','xlm_rpc','ltc_rpc'].forEach(k => {
-      const el = overlay.querySelector('#ep-' + k.replace('_', '-'));
+      const el = overlay.querySelector('#ep-' + k.replace('_', '-')) as HTMLInputElement | null;
       if (el) { const v = el.value.trim(); if (v) localStorage.setItem('00_ep_' + k, JSON.stringify(v)); else localStorage.removeItem('00_ep_' + k); }
     });
     if (indexer) localStorage.setItem('00_ep_indexer', JSON.stringify(indexer));
@@ -543,17 +542,17 @@ function buildSettingsModal() {
     overlay.classList.remove('open');
   };
 
-  overlay.querySelector('#ep-btn-reset').onclick = () => {
+  (overlay.querySelector('#ep-btn-reset') as HTMLButtonElement).onclick = () => {
     ['fulcrum','btc_electrum','relays','eth_rpc','bnb_rpc','avax_rpc','sol_rpc','trx_rpc','xrp_rpc','xlm_rpc','ltc_rpc','indexer','midgard','meta'].forEach(k => localStorage.removeItem('00_ep_' + k));
-    overlay.querySelector('#ep-fulcrum').value       = EP_DEFAULTS.fulcrum.join('\n');
-    overlay.querySelector('#ep-btc-electrum').value  = EP_DEFAULTS.btc_electrum.join('\n');
-    overlay.querySelector('#ep-relays').value         = EP_DEFAULTS.relays.join('\n');
-    overlay.querySelector('#ep-eth-rpc').value        = EP_DEFAULTS.eth_rpc;
-    overlay.querySelector('#ep-indexer').value         = EP_DEFAULTS.indexer;
-    overlay.querySelector('#ep-midgard').value         = EP_DEFAULTS.midgard;
-    overlay.querySelector('#ep-meta').value            = EP_DEFAULTS.meta;
+    (overlay.querySelector('#ep-fulcrum') as HTMLTextAreaElement).value = EP_DEFAULTS.fulcrum.join('\n');
+    (overlay.querySelector('#ep-btc-electrum') as HTMLTextAreaElement).value = EP_DEFAULTS.btc_electrum.join('\n');
+    (overlay.querySelector('#ep-relays') as HTMLTextAreaElement).value = EP_DEFAULTS.relays.join('\n');
+    (overlay.querySelector('#ep-eth-rpc') as HTMLInputElement).value = EP_DEFAULTS.eth_rpc;
+    (overlay.querySelector('#ep-indexer') as HTMLInputElement).value = EP_DEFAULTS.indexer;
+    (overlay.querySelector('#ep-midgard') as HTMLInputElement).value = EP_DEFAULTS.midgard;
+    (overlay.querySelector('#ep-meta') as HTMLInputElement).value = EP_DEFAULTS.meta;
     ['bnb_rpc','avax_rpc','sol_rpc','trx_rpc','xrp_rpc','xlm_rpc','ltc_rpc'].forEach(k => {
-      const el = overlay.querySelector('#ep-' + k.replace('_', '-'));
+      const el = overlay.querySelector('#ep-' + k.replace('_', '-')) as HTMLInputElement | null;
       if (el) el.value = EP_DEFAULTS[k];
     });
   };
@@ -567,17 +566,17 @@ function openSettings() {
   if (!_settingsOverlay) _settingsOverlay = buildSettingsModal();
   // Refresh values on open
   const ov = _settingsOverlay;
-  ov.querySelector('#ep-fulcrum').value       = (JSON.parse(localStorage.getItem('00_ep_fulcrum') || 'null') || EP_DEFAULTS.fulcrum).join('\n');
-  ov.querySelector('#ep-btc-electrum').value = (JSON.parse(localStorage.getItem('00_ep_btc_electrum') || 'null') || EP_DEFAULTS.btc_electrum).join('\n');
-  ov.querySelector('#ep-relays').value       = (JSON.parse(localStorage.getItem('00_ep_relays')  || 'null') || EP_DEFAULTS.relays).join('\n');
-  ov.querySelector('#ep-eth-rpc').value = localStorage.getItem('00_ep_eth_rpc') ? JSON.parse(localStorage.getItem('00_ep_eth_rpc')) : EP_DEFAULTS.eth_rpc;
-  ov.querySelector('#ep-indexer').value = localStorage.getItem('00_ep_indexer') ? JSON.parse(localStorage.getItem('00_ep_indexer')) : EP_DEFAULTS.indexer;
-  ov.querySelector('#ep-midgard').value = localStorage.getItem('00_ep_midgard') ? JSON.parse(localStorage.getItem('00_ep_midgard')) : EP_DEFAULTS.midgard;
-  ov.querySelector('#ep-meta').value    = localStorage.getItem('00_ep_meta')    ? JSON.parse(localStorage.getItem('00_ep_meta'))    : EP_DEFAULTS.meta;
+  (ov.querySelector('#ep-fulcrum') as HTMLTextAreaElement).value = (JSON.parse(localStorage.getItem('00_ep_fulcrum') || 'null') || EP_DEFAULTS.fulcrum).join('\n');
+  (ov.querySelector('#ep-btc-electrum') as HTMLTextAreaElement).value = (JSON.parse(localStorage.getItem('00_ep_btc_electrum') || 'null') || EP_DEFAULTS.btc_electrum).join('\n');
+  (ov.querySelector('#ep-relays') as HTMLTextAreaElement).value = (JSON.parse(localStorage.getItem('00_ep_relays')  || 'null') || EP_DEFAULTS.relays).join('\n');
+  (ov.querySelector('#ep-eth-rpc') as HTMLInputElement).value = localStorage.getItem('00_ep_eth_rpc') ? JSON.parse(localStorage.getItem('00_ep_eth_rpc')) : EP_DEFAULTS.eth_rpc;
+  (ov.querySelector('#ep-indexer') as HTMLInputElement).value = localStorage.getItem('00_ep_indexer') ? JSON.parse(localStorage.getItem('00_ep_indexer')) : EP_DEFAULTS.indexer;
+  (ov.querySelector('#ep-midgard') as HTMLInputElement).value = localStorage.getItem('00_ep_midgard') ? JSON.parse(localStorage.getItem('00_ep_midgard')) : EP_DEFAULTS.midgard;
+  (ov.querySelector('#ep-meta') as HTMLInputElement).value = localStorage.getItem('00_ep_meta') ? JSON.parse(localStorage.getItem('00_ep_meta')) : EP_DEFAULTS.meta;
   ov.classList.add('open');
 }
 
-// ── Networks modal ─────────────────────────────────────────────
+// â”€â”€ Networks modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NET_CHAINS = [
   { id: 'bch', name: 'BCH', proto: 'Fulcrum WSS', color: '#0AC18E', ws: true },
   { id: 'btc', name: 'BTC', proto: 'Electrum WSS', color: '#f7931a', ws: true },
@@ -594,23 +593,23 @@ const NET_CHAINS = [
 
 function _netServer(chain) {
   if (chain.ws && window._wsStatus) {
-    const s = window._wsStatus(chain.id);
-    if (s.connected && s.server) {
+    const s = window._wsStatus(chain.id) as { connected: boolean; server: string } | string;
+    if (typeof s !== 'string' && s.connected && s.server) {
       try { return { on: true, server: new URL(s.server).hostname }; } catch {}
       return { on: true, server: s.server };
     }
-    return { on: false, server: '—' };
+    return { on: false, server: 'â€”' };
   }
   if (chain.rpcKey) {
     const v = _epRead(chain.rpcKey, EP_DEFAULTS[chain.rpcKey]);
     try { return { on: true, server: new URL(v.replace('wss://', 'https://')).hostname }; } catch {}
-    return { on: !!v, server: v || '—' };
+    return { on: !!v, server: v || 'â€”' };
   }
   if (chain.id === 'xmr') {
     const nodes = ['node.moneroworld.com','xmr-node.cakewallet.com','nodes.hashvault.pro'];
     return { on: false, server: nodes[0] };
   }
-  return { on: false, server: '—' };
+  return { on: false, server: 'â€”' };
 }
 
 function buildNetworksModal() {
@@ -640,8 +639,8 @@ function buildNetworksModal() {
         '<span class="net-card-name">' + ch.name + '</span>' +
         '<span class="net-card-proto">' + ch.proto + '</span>' +
       '</div>' +
-      '<div class="net-card-server" id="net-srv-' + ch.id + '">—</div>' +
-      '<div class="net-card-status" id="net-st-' + ch.id + '">—</div>';
+      '<div class="net-card-server" id="net-srv-' + ch.id + '">â€”</div>' +
+      '<div class="net-card-status" id="net-st-' + ch.id + '">â€”</div>';
     grid.appendChild(card);
   }
   modal.appendChild(grid);
@@ -675,31 +674,31 @@ function openNetworks() {
   _networksOverlay.classList.add('open');
 }
 
-// ── Mobile bottom navigation ───────────────────────────────────
+// â”€â”€ Mobile bottom navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function _injectMobileNav() {
   if (document.getElementById('mob-nav')) return;
 
   const TABS = [
-    { icon: '⌂',  label: 'Home',   hash: '#/dashboard' },
-    { icon: '💳', label: 'Wallet', hash: '#/wallet'    },
-    { icon: '⚗',  label: 'Fusion', hash: '#/fusion'   },
-    { icon: '⇄',  label: 'Swap',   hash: '#/swap'     },
-    { icon: '···', label: 'More',  hash: null           },
+    { icon: 'âŒ‚',  label: 'Home',   hash: '#/dashboard' },
+    { icon: 'ðŸ’³', label: 'Wallet', hash: '#/wallet'    },
+    { icon: 'âš—',  label: 'Fusion', hash: '#/fusion'   },
+    { icon: 'â‡„',  label: 'Swap',   hash: '#/swap'     },
+    { icon: 'Â·Â·Â·', label: 'More',  hash: null           },
   ];
 
   const DRAWER_ITEMS = [
-    { icon: '💬', label: 'Chat',    hash: '#/chat'    },
-    { icon: '🧅', label: 'Onion',   hash: '#/onion'   },
-    { icon: '📊', label: 'DEX',     hash: '#/dex'     },
-    { icon: '💸', label: 'Pay',     hash: '#/pay'     },
-    { icon: '🏦', label: 'Loan',    hash: '#/loan'    },
-    { icon: '🔐', label: 'Vault',   hash: '#/vault'   },
-    { icon: '🎲', label: 'Bet',     hash: '#/bet'     },
-    { icon: '◉',  label: 'ID',      hash: '#/id'      },
-    { icon: '⬡',  label: 'Mesh',    hash: '#/mesh'    },
-    { icon: '📋', label: 'Sub',     hash: '#/sub'     },
-    { icon: '⚙',  label: 'Settings',hash: '#/config'  },
-    { icon: '🔑', label: 'Auth',    hash: '#/auth'    },
+    { icon: 'ðŸ’¬', label: 'Chat',    hash: '#/chat'    },
+    { icon: 'ðŸ§…', label: 'Onion',   hash: '#/onion'   },
+    { icon: 'ðŸ“Š', label: 'DEX',     hash: '#/dex'     },
+    { icon: 'ðŸ’¸', label: 'Pay',     hash: '#/pay'     },
+    { icon: 'ðŸ¦', label: 'Loan',    hash: '#/loan'    },
+    { icon: 'ðŸ”', label: 'Vault',   hash: '#/vault'   },
+    { icon: 'ðŸŽ²', label: 'Bet',     hash: '#/bet'     },
+    { icon: 'â—‰',  label: 'ID',      hash: '#/id'      },
+    { icon: 'â¬¡',  label: 'Mesh',    hash: '#/mesh'    },
+    { icon: 'ðŸ“‹', label: 'Sub',     hash: '#/sub'     },
+    { icon: 'âš™',  label: 'Settings',hash: '#/config'  },
+    { icon: 'ðŸ”‘', label: 'Auth',    hash: '#/auth'    },
   ];
 
   // Drawer backdrop
@@ -731,7 +730,7 @@ function _injectMobileNav() {
   for (const tab of TABS) {
     const el = tab.hash ? document.createElement('a') : document.createElement('button');
     el.className = 'mob-tab';
-    if (tab.hash) el.href = tab.hash;
+    if (tab.hash) (el as HTMLAnchorElement).href = tab.hash;
     el.innerHTML = `<span class="mob-tab-icon">${tab.icon}</span><span>${tab.label}</span>`;
     if (!tab.hash) {
       el.addEventListener('click', () => {
@@ -762,18 +761,18 @@ function _injectMobileNav() {
   _syncActive();
 }
 
-// ── Build controls ─────────────────────────────────────────────
+// â”€â”€ Build controls â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function buildControls(showApps) {
   const cur  = window.location.pathname.split('/').pop() || 'index.html';
   const wrap = document.createElement('div');
   wrap.className = 'shell-controls';
 
   if (showApps) {
-    // Home button — back to launcher
+    // Home button â€” back to launcher
     const home = document.createElement('a');
     home.href = '/';
     home.className = 'shell-btn';
-    home.textContent = '\u2302';  // ⌂
+    home.textContent = '\u2302';  // âŒ‚
     home.title = 'Home';
     home.style.cssText = 'font-size:14px;text-decoration:none;display:flex;align-items:center;padding:2px 6px';
     wrap.appendChild(home);
@@ -784,11 +783,11 @@ function buildControls(showApps) {
     const d = document.createElement('div');
     d.className = 'shell-drop';
     d.innerHTML = `
-      <button class="shell-btn" data-i18n="apps">${t('apps')} ▾</button>
+      <button class="shell-btn" data-i18n="apps">${t('apps')} â–¾</button>
       <div class="shell-menu">${appsHtml}</div>`;
-    d.querySelector('.shell-btn').onclick = e => {
+    (d.querySelector('.shell-btn') as HTMLButtonElement).onclick = e => {
       e.stopPropagation();
-      d.querySelector('.shell-menu').classList.toggle('open');
+      (d.querySelector('.shell-menu') as HTMLElement).classList.toggle('open');
     };
     wrap.appendChild(d);
   }
@@ -797,21 +796,21 @@ function buildControls(showApps) {
   const langD = document.createElement('div');
   langD.className = 'shell-drop';
   langD.innerHTML = `
-    <button class="shell-btn"><span class="shell-lang-cur">${_lang}</span> ▾</button>
+    <button class="shell-btn"><span class="shell-lang-cur">${_lang}</span> â–¾</button>
     <div class="shell-menu">
       ${LANGS.map(l =>
         `<div class="shell-menu-item shell-lang-opt${l === _lang ? ' active' : ''}" data-lang="${l}">${l}</div>`
       ).join('')}
     </div>`;
-  langD.querySelector('.shell-btn').onclick = e => {
+  (langD.querySelector('.shell-btn') as HTMLButtonElement).onclick = e => {
     e.stopPropagation();
-    langD.querySelector('.shell-menu').classList.toggle('open');
+    (langD.querySelector('.shell-menu') as HTMLElement).classList.toggle('open');
   };
   langD.querySelectorAll('.shell-lang-opt').forEach(opt => {
-    opt.onclick = e => {
+    (opt as HTMLElement).onclick = e => {
       e.stopPropagation();
-      setLang(opt.dataset.lang);
-      langD.querySelector('.shell-menu').classList.remove('open');
+      setLang((opt as HTMLElement).dataset.lang);
+      (langD.querySelector('.shell-menu') as HTMLElement).classList.remove('open');
     };
   });
   wrap.appendChild(langD);
@@ -847,7 +846,7 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.shell-menu').forEach(m => m.classList.remove('open'));
 });
 
-// ── Home Indicator (iOS pill) ──────────────────────────────────
+// â”€â”€ Home Indicator (iOS pill) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function buildHomeIndicator() {
   const a = document.createElement('a');
   a.href = '/index.html';
@@ -856,7 +855,7 @@ function buildHomeIndicator() {
   return a;
 }
 
-// ── Desktop Sidebar ────────────────────────────────────────────
+// â”€â”€ Desktop Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function buildDesktopSidebar() {
   const cur = IS_SPA
     ? (window.location.hash ? window.location.hash.replace('#/', '') + '.html' : 'index.html')
@@ -900,7 +899,7 @@ function buildDesktopSidebar() {
       const isActive = IS_SPA ? (resolved === '#/' + cur.replace('.html', '')) : (url === cur);
       a.className = 'sidebar-nav-item' + (isActive ? ' active' : '');
       a.href = resolved;
-      a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || '●'}</span><span class="sidebar-label">${app.name.replace('00 ', '')}</span>`;
+      a.innerHTML = `<span class="sidebar-nav-icon">${APP_ICONS[url] || 'â—'}</span><span class="sidebar-label">${app.name.replace('00 ', '')}</span>`;
       nav.appendChild(a);
     }
   }
@@ -914,21 +913,21 @@ function buildDesktopSidebar() {
   const docBtn = document.createElement('a');
   docBtn.className = 'sidebar-bottom-item';
   docBtn.href = 'docs.html';
-  docBtn.innerHTML = '<span class="sidebar-bottom-icon">📖</span><span class="sidebar-label">Docs</span>';
+  docBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ“–</span><span class="sidebar-label">Docs</span>';
   bot.appendChild(docBtn);
 
   // Theme toggle
   const theme = getTheme();
   const themeBtn = document.createElement('button');
   themeBtn.className = 'sidebar-bottom-item';
-  themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === 'dark' ? '☀' : '☾'}</span><span class="sidebar-label" id="dt-theme-label">${theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>`;
+  themeBtn.innerHTML = `<span class="sidebar-bottom-icon" id="dt-theme-icon">${theme === 'dark' ? 'â˜€' : 'â˜¾'}</span><span class="sidebar-label" id="dt-theme-label">${theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>`;
   themeBtn.onclick = () => setTheme(getTheme() === 'light' ? 'dark' : 'light');
   bot.appendChild(themeBtn);
 
   // Networks
   const netBtn = document.createElement('button');
   netBtn.className = 'sidebar-bottom-item';
-  netBtn.innerHTML = '<span class="sidebar-bottom-icon">🌐</span>' +
+  netBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸŒ</span>' +
     '<span class="sidebar-label">Networks</span>' +
     '<span class="sidebar-net-dots" id="sb-net-dots">' +
       '<span class="sb-dot" data-chain="bch"></span>' +
@@ -942,7 +941,7 @@ function buildDesktopSidebar() {
   // Settings
   const setBtn = document.createElement('button');
   setBtn.className = 'sidebar-bottom-item';
-  setBtn.innerHTML = '<span class="sidebar-bottom-icon">⚙</span><span class="sidebar-label">Settings</span>';
+  setBtn.innerHTML = '<span class="sidebar-bottom-icon">âš™</span><span class="sidebar-label">Settings</span>';
   setBtn.onclick = () => openSettings();
   bot.appendChild(setBtn);
 
@@ -950,18 +949,18 @@ function buildDesktopSidebar() {
   if (localStorage.getItem('00wallet_vault')) {
     const keysBtn = document.createElement('button');
     keysBtn.className = 'sidebar-bottom-item';
-    keysBtn.innerHTML = '<span class="sidebar-bottom-icon">🔑</span><span class="sidebar-label">Export Keys</span>';
+    keysBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ”‘</span><span class="sidebar-label">Export Keys</span>';
     keysBtn.onclick = () => { if (window.openExportKeys) window.openExportKeys(); else window.location.href = 'wallet.html?action=exportKeys'; };
     bot.appendChild(keysBtn);
 
     const walletBtn = document.createElement('button');
     walletBtn.className = 'sidebar-bottom-item';
-    walletBtn.innerHTML = '<span class="sidebar-bottom-icon">💾</span><span class="sidebar-label">Export Wallet</span>';
+    walletBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ’¾</span><span class="sidebar-label">Export Wallet</span>';
     walletBtn.onclick = () => { if (window.exportBackup) window.exportBackup(); else window.location.href = 'wallet.html?action=exportBackup'; };
     bot.appendChild(walletBtn);
   }
 
-  // Connect / Disconnect — dynamic, refreshed on auth change
+  // Connect / Disconnect â€” dynamic, refreshed on auth change
   const discBtn = document.createElement('button');
   discBtn.id = 'sidebar-connect-btn';
   _refreshConnectBtn(discBtn);
@@ -970,7 +969,7 @@ function buildDesktopSidebar() {
   // Collapse toggle
   const colBtn = document.createElement('button');
   colBtn.className = 'sidebar-bottom-item';
-  colBtn.innerHTML = '<span class="sidebar-bottom-icon">☰</span><span class="sidebar-label">Collapse</span>';
+  colBtn.innerHTML = '<span class="sidebar-bottom-icon">â˜°</span><span class="sidebar-label">Collapse</span>';
   colBtn.onclick = () => {
     const isAutoCollapsed = window.matchMedia('(min-width:900px) and (max-width:1100px)').matches;
     if (isAutoCollapsed) {
@@ -988,7 +987,7 @@ function buildDesktopSidebar() {
   return sb;
 }
 
-// ── Inject ─────────────────────────────────────────────────────
+// â”€â”€ Inject â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function inject() {
   const path      = window.location.pathname.split('/').pop() || 'index.html';
   const isLanding = path === '' || path === 'index.html';
@@ -997,7 +996,7 @@ function inject() {
   // Remove blinking cursor to avoid visual conflict with shell controls
   document.querySelectorAll('.blink').forEach(el => el.remove());
 
-  // ── Desktop: inject sidebar ──
+  // â”€â”€ Desktop: inject sidebar â”€â”€
   if (IS_DESKTOP && !isDocs) {
     document.body.prepend(buildDesktopSidebar());
     // Wire SharedWorker status to sidebar network dots
@@ -1026,19 +1025,19 @@ function inject() {
     }
   }
 
-  // ── Mobile: inject bottom nav ──
+  // â”€â”€ Mobile: inject bottom nav â”€â”€
   if (!IS_DESKTOP && !isDocs) {
     _injectMobileNav();
   }
 
-  // Docs: skip shell controls — docs has its own top-bar layout
+  // Docs: skip shell controls â€” docs has its own top-bar layout
   // if (IS_DESKTOP && isDocs) {
   //   const bar = document.querySelector('.top-bar');
   //   if (bar) bar.appendChild(buildControls(true));
   // }
 }
 
-// ── Resize listener — desktop ↔ mobile ─────────────────────────
+// â”€â”€ Resize listener â€” desktop â†” mobile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _desktopMQ.addEventListener('change', (e) => {
   IS_DESKTOP = e.matches;
   if (e.matches) {

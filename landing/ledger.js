@@ -9,7 +9,7 @@
     4096,
     16384,
     20480,
-    // Nano-S, Nano-X, Nano-S-Plus (new PIDs — ElectrumABC b03bd41)
+    // Nano-S, Nano-X, Nano-S-Plus (new PIDs â€” ElectrumABC b03bd41)
     24576,
     28672,
     32768
@@ -90,7 +90,7 @@
       let resp = null, total = 0, received = 0;
       const tOut = setTimeout(() => {
         device.removeEventListener("inputreport", handler);
-        reject(new Error("Ledger timeout \u2014 is the Bitcoin Cash app open and unlocked?"));
+        reject(new Error("Ledger timeout \xE2\u20AC\u201D is the Bitcoin Cash app open and unlocked?"));
       }, 3e4);
       function handler(e) {
         const raw = new Uint8Array(e.data.buffer);
@@ -119,7 +119,7 @@
             return;
           }
           if (sw === 27404) {
-            reject(new Error("Ledger: device is locked \u2014 enter PIN first"));
+            reject(new Error("Ledger: device is locked \xE2\u20AC\u201D enter PIN first"));
             return;
           }
           if (sw !== 36864) {
@@ -137,7 +137,7 @@
     return concat(new Uint8Array([224, ins, p1, p2, data.length]), data);
   }
   async function connectLedger() {
-    if (!navigator.hid) throw new Error("WebHID not available \u2014 use Chrome or Edge");
+    if (!navigator.hid) throw new Error("WebHID not available \xE2\u20AC\u201D use Chrome or Edge");
     const filters = PIDS.map((pid) => ({ vendorId: VENDOR, productId: pid }));
     const devs = await navigator.hid.requestDevice({ filters });
     if (!devs.length) throw new Error("No Ledger device selected");

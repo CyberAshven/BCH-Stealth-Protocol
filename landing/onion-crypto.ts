@@ -1,6 +1,5 @@
-// @ts-nocheck
-/**
- * onion-crypto.js — Shared onion encryption, NIP-04/NIP-44, and Nostr event signing
+﻿/**
+ * onion-crypto.js â€” Shared onion encryption, NIP-04/NIP-44, and Nostr event signing
  * Used by: fusion.html, onion.html, wallet.html, relay.js
  */
 
@@ -10,9 +9,9 @@ import { hkdfExtract, hkdfExpand } from './lib/noble-hashes.js';
 import { hmac } from './lib/noble-hashes.js';
 import { chacha20 } from './lib/noble-ciphers.js';
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    UTILITIES
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const b2h = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
 export const h2b = h => new Uint8Array(h.match(/.{2}/g).map(x => parseInt(x, 16)));
 export const rand = n => crypto.getRandomValues(new Uint8Array(n));
@@ -22,10 +21,10 @@ export function concat(...arrs) {
   let o = 0; for (const a of arrs) { r.set(a, o); o += a.length; } return r;
 }
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    ONION ENCRYPTION (secp256k1 ECDH + AES-256-GCM)
    Each layer: eph_pub(33) || nonce(12) || ciphertext+tag
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export async function onionLayer(data, peelerPubHex) {
   const eph = rand(32);
   const ephPub = secp256k1.getPublicKey(eph, true); // 33 bytes compressed
@@ -74,9 +73,9 @@ export function onionUnpad(data) {
   return { addr: str, value: 0 }; // v1 fallback
 }
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    NIP-01 NOSTR EVENT SIGNING
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export async function makeEvent(privBytes, kind, content, tags = []) {
   const pub = b2h(secp256k1.getPublicKey(privBytes, true).slice(1)); // x-only
   const created_at = Math.floor(Date.now() / 1000);
@@ -85,9 +84,9 @@ export async function makeEvent(privBytes, kind, content, tags = []) {
   return { id: b2h(idHash), pubkey: pub, created_at, kind, tags, content, sig };
 }
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    NIP-04 ENCRYPTION (secp256k1 ECDH + AES-CBC)
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export async function nip04Encrypt(myPriv, theirPubHex, msg) {
   const shared = secp256k1.getSharedSecret(myPriv, h2b('02' + theirPubHex)).slice(1, 33);
   const iv = rand(16);
@@ -108,10 +107,10 @@ export async function nip04Decrypt(myPriv, senderPubHex, encContent) {
   } catch { return null; }
 }
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    NIP-44 ENCRYPTION (ChaCha20 + HKDF + HMAC-SHA256)
    Versioned, padded, authenticated encryption per NIP-44 v2
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const NIP44_SALT = utf8('nip44-v2');
 
 function nip44ConversationKey(myPriv, theirPubHex) {
@@ -174,10 +173,10 @@ export async function nip44Decrypt(myPriv, senderPubHex, b64payload) {
   } catch { return null; }
 }
 
-/* ──────────────────────────────────────────
-   NIP-59 GIFT WRAP (rumor → seal → wrap)
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   NIP-59 GIFT WRAP (rumor â†’ seal â†’ wrap)
    Hides sender, recipient, and timestamp metadata from Nostr relays
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const TWO_DAYS = 2 * 24 * 60 * 60;
 
 function randomTimeShift() {
@@ -195,7 +194,7 @@ function createRumor(authorPubHex, kind, content, tags = []) {
   const created_at = Math.floor(Date.now() / 1000);
   const id = eventId(authorPubHex, created_at, kind, tags, content);
   return { id, pubkey: authorPubHex, created_at, kind, tags, content };
-  // Note: no sig field — intentional for deniability
+  // Note: no sig field â€” intentional for deniability
 }
 
 // Create a sealed event (Layer 2, kind 13)
@@ -224,7 +223,7 @@ async function createWrap(recipientPubHex, seal) {
 }
 
 /**
- * giftWrap — Full NIP-59 wrap: rumor → seal → gift wrap
+ * giftWrap â€” Full NIP-59 wrap: rumor â†’ seal â†’ gift wrap
  * @param {Uint8Array} authorPriv - Author's real private key
  * @param {string} recipientPubHex - Recipient's x-only pubkey hex
  * @param {number} innerKind - Kind for the inner rumor (e.g. 22231)
@@ -240,7 +239,7 @@ export async function giftWrap(authorPriv, recipientPubHex, innerKind, innerCont
 }
 
 /**
- * giftUnwrap — Unwrap NIP-59 gift wrap → seal → rumor
+ * giftUnwrap â€” Unwrap NIP-59 gift wrap â†’ seal â†’ rumor
  * @param {Uint8Array} myPriv - Recipient's private key
  * @param {Object} wrapEvent - Kind 1059 event
  * @returns {{rumor, sealPubkey}} The inner rumor + real sender pubkey, or null
@@ -267,8 +266,8 @@ export async function giftUnwrap(myPriv, wrapEvent) {
   } catch { return null; }
 }
 
-/* ──────────────────────────────────────────
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
    RE-EXPORTS for convenience
-   ────────────────────────────────────────── */
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export { secp256k1, schnorr, sha256 };
 
