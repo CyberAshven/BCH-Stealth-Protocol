@@ -74,7 +74,10 @@
   }
   async function _decrypt(keyBytes, b64) {
     const key = await _aesKey(keyBytes);
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    // Accept both base64 and base64url payloads from external WizardConnect peers.
+    const normalized = String(b64 || '').trim().replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const bytes = Uint8Array.from(atob(padded), c => c.charCodeAt(0));
     const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, key, bytes.slice(12));
     return JSON.parse(new TextDecoder().decode(pt));
   }
@@ -291,15 +294,25 @@
 
     /** Parse a wiz:// URI and connect to the wallet. */
     async connect(uri) {
+      const rawUri = String(uri || '').trim();
+      let wizUri = rawUri;
+      if (!/^wiz:\/\//i.test(wizUri)) {
+        try {
+          const decoded = decodeURIComponent(wizUri);
+          if (/^wiz:\/\//i.test(decoded)) wizUri = decoded;
+        } catch {}
+      }
       let params;
       try {
-        params = new URL(uri.replace(/^wiz:\/\//, 'https://wiz.local/')).searchParams;
+        params = new URL(wizUri.replace(/^wiz:\/\//i, 'https://wiz.local/')).searchParams;
       } catch { throw new Error('Invalid wiz:// URI'); }
 
-      const walletPub = params.get('p'); // 33-byte compressed pubkey (66 hex)
+      let walletPub = (params.get('p') || '').trim().replace(/^0x/i, '');
       const sessionId = params.get('s');
-      const relayUrl = params.get('r') ? decodeURIComponent(params.get('r')) : RELAYS[0];
+      const relayUrl = (params.get('r') || '').trim() || RELAYS[0];
       if (!walletPub || !sessionId) throw new Error('Missing p or s in wiz:// URI');
+      if (walletPub.length === 64) walletPub = '02' + walletPub;
+      if (walletPub.length !== 66) throw new Error('Invalid p in wiz:// URI');
 
       this._walletPubHex = walletPub;
       this._sessionId = sessionId;
