@@ -405,7 +405,7 @@ async function doWizardConnect() {
     const statusEl = document.getElementById('wiz-dapp-status');
     if (!uri) { statusEl.textContent = 'Paste a wiz:// URI'; return; }
     try {
-      wizDappMgr = new WC.DappManager('BCH Stealth Wallet', 'https://bchstealthwallet.com/icons/00.png');
+      wizDappMgr = new WC.DappManager('BCH Stealth Wallet', 'https://0penw0rld.com/icons/00.png');
       wizDappMgr.onConnect((walletName, walletIcon, paths) => {
         statusEl.innerHTML = '<span style="color:#0AC18E">✓ Connected to ' + walletName + ' — ' + paths.length + ' paths</span>';
         // Store paths for use
