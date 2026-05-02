@@ -115,11 +115,24 @@ jobs:
           path: release-assets
 
       - name: Create or update release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: BCH-Stealth-Wallet-latest
-          name: BCH Stealth Wallet (latest)
-          files: release-assets/**/*
-          overwrite_files: true
-          fail_on_unmatched_files: true
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          TAG="BCH-Stealth-Wallet-latest"
+          TITLE="BCH Stealth Wallet (latest)"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE"
+          else
+            gh release create "$TAG" --title "$TITLE" --notes "Rolling latest build artifacts."
+          fi
+
+          mapfile -t FILES < <(find release-assets -type f)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No release assets found under release-assets/."
+            exit 1
+          fi
+
+          gh release upload "$TAG" "${FILES[@]}" --clobber
