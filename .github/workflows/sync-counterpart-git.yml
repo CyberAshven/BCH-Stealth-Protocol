@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   sync:
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: Mirror main branch and tags to counterpart
