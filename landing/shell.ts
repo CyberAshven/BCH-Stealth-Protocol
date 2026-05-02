@@ -64,7 +64,7 @@ function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('00_theme', theme);
   const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-  if (meta) meta.content = theme === 'dark' ? '☀' : '☾';
+  if (meta) meta.content = theme === 'dark' ? '#0b0f17' : '#f5f6f8';
   const icon = document.getElementById('dt-theme-icon');
   const label = document.getElementById('dt-theme-label');
   if (icon) icon.textContent = theme === 'dark' ? '☀' : '☾';
@@ -72,7 +72,7 @@ function setTheme(theme) {
   // Override hacker green with BCH green on desktop
   if (IS_DESKTOP) {
     const r = document.documentElement.style;
-    const accent = theme === 'dark' ? '☀' : '☾';
+    const accent = '#0AC18E';
     r.setProperty('--green', accent, 'important');
     r.setProperty('--green-dim', accent, 'important');
     r.setProperty('--green-dark', 'rgba(10,193,142,.15)', 'important');
@@ -206,11 +206,11 @@ function _refreshConnectBtn(btn?) {
   if (!btn) return;
   if (isConnected()) {
     btn.className = 'sidebar-bottom-item danger';
-    btn.innerHTML = '<span class="sidebar-bottom-icon">â»</span><span class="sidebar-label">' + t('disc') + '</span>';
+    btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t('disc') + '</span>';
     btn.onclick = disconnect;
   } else {
     btn.className = 'sidebar-bottom-item';
-    btn.innerHTML = '<span class="sidebar-bottom-icon">â»</span><span class="sidebar-label">' + t('connect') + '</span>';
+    btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t('connect') + '</span>';
     btn.onclick = () => { window.location.hash = '#/auth'; };
   }
 }
@@ -598,18 +598,18 @@ function _netServer(chain) {
       try { return { on: true, server: new URL(s.server).hostname }; } catch {}
       return { on: true, server: s.server };
     }
-    return { on: false, server: 'â€”' };
+    return { on: false, server: '—' };
   }
   if (chain.rpcKey) {
     const v = _epRead(chain.rpcKey, EP_DEFAULTS[chain.rpcKey]);
     try { return { on: true, server: new URL(v.replace('wss://', 'https://')).hostname }; } catch {}
-    return { on: !!v, server: v || 'â€”' };
+    return { on: !!v, server: v || '—' };
   }
   if (chain.id === 'xmr') {
     const nodes = ['node.moneroworld.com','xmr-node.cakewallet.com','nodes.hashvault.pro'];
     return { on: false, server: nodes[0] };
   }
-  return { on: false, server: 'â€”' };
+  return { on: false, server: '—' };
 }
 
 function buildNetworksModal() {
@@ -639,8 +639,8 @@ function buildNetworksModal() {
         '<span class="net-card-name">' + ch.name + '</span>' +
         '<span class="net-card-proto">' + ch.proto + '</span>' +
       '</div>' +
-      '<div class="net-card-server" id="net-srv-' + ch.id + '">â€”</div>' +
-      '<div class="net-card-status" id="net-st-' + ch.id + '">â€”</div>';
+      '<div class="net-card-server" id="net-srv-' + ch.id + '">—</div>' +
+      '<div class="net-card-status" id="net-st-' + ch.id + '">—</div>';
     grid.appendChild(card);
   }
   modal.appendChild(grid);
@@ -679,26 +679,26 @@ function _injectMobileNav() {
   if (document.getElementById('mob-nav')) return;
 
   const TABS = [
-    { icon: 'âŒ‚',  label: 'Home',   hash: '#/dashboard' },
-    { icon: 'ðŸ’³', label: 'Wallet', hash: '#/wallet'    },
-    { icon: 'âš—',  label: 'Fusion', hash: '#/fusion'   },
-    { icon: 'â‡„',  label: 'Swap',   hash: '#/swap'     },
-    { icon: 'Â·Â·Â·', label: 'More',  hash: null           },
+    { icon: '\u2302', label: 'Home',   hash: '#/dashboard' },
+    { icon: '\u{1F4B3}', label: 'Wallet', hash: '#/wallet' },
+    { icon: '\u2697', label: 'Fusion', hash: '#/fusion' },
+    { icon: '\u21C4', label: 'Swap',   hash: '#/swap' },
+    { icon: '···', label: 'More', hash: null },
   ];
 
   const DRAWER_ITEMS = [
-    { icon: 'ðŸ’¬', label: 'Chat',    hash: '#/chat'    },
-    { icon: 'ðŸ§…', label: 'Onion',   hash: '#/onion'   },
-    { icon: 'ðŸ“Š', label: 'DEX',     hash: '#/dex'     },
-    { icon: 'ðŸ’¸', label: 'Pay',     hash: '#/pay'     },
-    { icon: 'ðŸ¦', label: 'Loan',    hash: '#/loan'    },
-    { icon: 'ðŸ”', label: 'Vault',   hash: '#/vault'   },
-    { icon: 'ðŸŽ²', label: 'Bet',     hash: '#/bet'     },
-    { icon: 'â—‰',  label: 'ID',      hash: '#/id'      },
-    { icon: 'â¬¡',  label: 'Mesh',    hash: '#/mesh'    },
-    { icon: 'ðŸ“‹', label: 'Sub',     hash: '#/sub'     },
-    { icon: 'âš™',  label: 'Settings',hash: '#/config'  },
-    { icon: 'ðŸ”‘', label: 'Auth',    hash: '#/auth'    },
+    { icon: '\u{1F4AC}', label: 'Chat', hash: '#/chat' },
+    { icon: '\u{1F9C5}', label: 'Onion', hash: '#/onion' },
+    { icon: '\u{1F4CA}', label: 'DEX', hash: '#/dex' },
+    { icon: '\u{1F4B8}', label: 'Pay', hash: '#/pay' },
+    { icon: '\u{1F3E6}', label: 'Loan', hash: '#/loan' },
+    { icon: '\u{1F510}', label: 'Vault', hash: '#/vault' },
+    { icon: '\u{1F3B2}', label: 'Bet', hash: '#/bet' },
+    { icon: '\u25C9', label: 'ID', hash: '#/id' },
+    { icon: '\u2B21', label: 'Mesh', hash: '#/mesh' },
+    { icon: '\u{1F4CB}', label: 'Sub', hash: '#/sub' },
+    { icon: '\u2699', label: 'Settings', hash: '#/config' },
+    { icon: '\u{1F511}', label: 'Auth', hash: '#/auth' },
   ];
 
   // Drawer backdrop
@@ -931,7 +931,7 @@ function buildDesktopSidebar() {
   // Networks
   const netBtn = document.createElement('button');
   netBtn.className = 'sidebar-bottom-item';
-  netBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸŒ</span>' +
+  netBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F310}</span>' +
     '<span class="sidebar-label">Networks</span>' +
     '<span class="sidebar-net-dots" id="sb-net-dots">' +
       '<span class="sb-dot" data-chain="bch"></span>' +
@@ -945,7 +945,7 @@ function buildDesktopSidebar() {
   // Settings
   const setBtn = document.createElement('button');
   setBtn.className = 'sidebar-bottom-item';
-  setBtn.innerHTML = '<span class="sidebar-bottom-icon">âš™</span><span class="sidebar-label">Settings</span>';
+  setBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2699</span><span class="sidebar-label">Settings</span>';
   setBtn.onclick = () => openSettings();
   bot.appendChild(setBtn);
 
@@ -953,13 +953,13 @@ function buildDesktopSidebar() {
   if (localStorage.getItem('00wallet_vault')) {
     const keysBtn = document.createElement('button');
     keysBtn.className = 'sidebar-bottom-item';
-    keysBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ”‘</span><span class="sidebar-label">Export Keys</span>';
+    keysBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F511}</span><span class="sidebar-label">Export Keys</span>';
     keysBtn.onclick = () => { if (window.openExportKeys) window.openExportKeys(); else window.location.href = 'wallet.html?action=exportKeys'; };
     bot.appendChild(keysBtn);
 
     const walletBtn = document.createElement('button');
     walletBtn.className = 'sidebar-bottom-item';
-    walletBtn.innerHTML = '<span class="sidebar-bottom-icon">ðŸ’¾</span><span class="sidebar-label">Export Wallet</span>';
+    walletBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F4BE}</span><span class="sidebar-label">Export Wallet</span>';
     walletBtn.onclick = () => { if (window.exportBackup) window.exportBackup(); else window.location.href = 'wallet.html?action=exportBackup'; };
     bot.appendChild(walletBtn);
   }
@@ -973,7 +973,7 @@ function buildDesktopSidebar() {
   // Collapse toggle
   const colBtn = document.createElement('button');
   colBtn.className = 'sidebar-bottom-item';
-  colBtn.innerHTML = '<span class="sidebar-bottom-icon">â˜°</span><span class="sidebar-label">Collapse</span>';
+  colBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2630</span><span class="sidebar-label">Collapse</span>';
   colBtn.onclick = () => {
     const isAutoCollapsed = window.matchMedia('(min-width:900px) and (max-width:1100px)').matches;
     if (isAutoCollapsed) {

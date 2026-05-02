@@ -158,7 +158,10 @@
         } catch {
           return;
         }
-        if (payload.type === "connect") {
+        const isConnect = payload?.type === "connect" || payload?.action === "connect_request";
+        const isSignReq = payload?.type === "sign_req" || payload?.action === "sign_transaction_request" || payload?.action === "sign_request";
+        const isDisconnect = payload?.type === "disconnect" || payload?.action === "disconnect_request" || payload?.action === "disconnect";
+        if (isConnect) {
           this._dappName = payload.name || "Dapp";
           this._onConnect?.(this._dappName);
           const paths = [];
@@ -172,7 +175,13 @@
             };
           }
           const session = paths.length ? { hdwalletv1: { paths, ...Object.keys(extensions).length ? { extensions } : {} } } : void 0;
-          const respPayload = { type: "wallet_ready", name: "00 Wallet", icon: "" };
+          const respPayload = {
+            type: "wallet_ready",
+            action: "wallet_ready",
+            time: Math.floor(Date.now() / 1e3),
+            name: "00 Wallet",
+            icon: ""
+          };
           if (session) respPayload.session = session;
           const resp = await _encrypt(this._sharedKey, respPayload);
           const ev2 = await _makeNostrEvent(
@@ -183,9 +192,15 @@
             resp
           );
           _publish(this._relays, ev2);
-        } else if (payload.type === "sign_req") {
-          this._onSignReq?.(payload);
-        } else if (payload.type === "disconnect") {
+        } else if (isSignReq) {
+          const norm = {
+            ...payload,
+            sequence: payload.sequence ?? payload.seq ?? null,
+            seq: payload.seq ?? payload.sequence ?? null,
+            signedTx: payload.signedTx || payload.signedTransaction || payload.tx || ""
+          };
+          this._onSignReq?.(norm);
+        } else if (isDisconnect) {
           this._onDisconnect?.();
         }
       };
@@ -210,7 +225,16 @@
     }
     async approveSign(seq, signedTx) {
       if (!this._sharedKey || !this._sessionId || !this._dappPubHex) return;
-      const c = await _encrypt(this._sharedKey, { type: "sign_resp", seq, status: "ok", signed: signedTx });
+      const c = await _encrypt(this._sharedKey, {
+        type: "sign_resp",
+        action: "sign_transaction_response",
+        time: Math.floor(Date.now() / 1e3),
+        seq,
+        sequence: seq,
+        status: "ok",
+        signed: signedTx,
+        signedTransaction: signedTx
+      });
       const ev = await _makeNostrEvent(
         this._priv,
         this._xonlyHex,
@@ -222,7 +246,15 @@
     }
     async rejectSign(seq, reason) {
       if (!this._sharedKey || !this._sessionId || !this._dappPubHex) return;
-      const c = await _encrypt(this._sharedKey, { type: "sign_resp", seq, status: "rejected", reason: reason || "Rejected" });
+      const c = await _encrypt(this._sharedKey, {
+        type: "sign_resp",
+        action: "sign_transaction_response",
+        time: Math.floor(Date.now() / 1e3),
+        seq,
+        sequence: seq,
+        status: "rejected",
+        reason: reason || "Rejected"
+      });
       const ev = await _makeNostrEvent(
         this._priv,
         this._xonlyHex,
@@ -288,9 +320,9 @@
         } catch {
           return;
         }
-        if (payload.type === "connected" || payload.type === "wallet_ready") {
+        if (payload.type === "connected" || payload.type === "wallet_ready" || payload.action === "wallet_ready") {
           this._onConnect?.(payload.name || "Wallet", payload.icon || "", payload.session?.hdwalletv1?.paths || payload.paths || []);
-        } else if (payload.type === "disconnect") {
+        } else if (payload.type === "disconnect" || payload.action === "disconnect" || payload.action === "disconnect_response") {
           this._onDisconnect?.(payload.reason || "Disconnected");
         }
       };
@@ -298,7 +330,13 @@
       for (const url of relayList) {
         const ws = _openRelay(url, onEvent, async (ws2) => {
           _subscribe(ws2, this._subId, [{ kinds: [WIZ_KIND], "#s": [sessionId] }]);
-          const content = await _encrypt(this._sharedKey, { type: "connect", name: this._name, icon: this._icon });
+          const content = await _encrypt(this._sharedKey, {
+            type: "connect",
+            action: "connect_request",
+            time: Math.floor(Date.now() / 1e3),
+            name: this._name,
+            icon: this._icon
+          });
           const walletXonly = walletPub.slice(2);
           const ev = await _makeNostrEvent(
             kp.priv,

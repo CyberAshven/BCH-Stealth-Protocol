@@ -78,14 +78,14 @@
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("00_theme", theme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = theme === "dark" ? "\u2600" : "\u263E";
+    if (meta) meta.content = theme === "dark" ? "#0b0f17" : "#f5f6f8";
     const icon = document.getElementById("dt-theme-icon");
     const label = document.getElementById("dt-theme-label");
     if (icon) icon.textContent = theme === "dark" ? "\u2600" : "\u263E";
     if (label) label.textContent = theme === "dark" ? "\u2600" : "\u263E";
     if (IS_DESKTOP) {
       const r = document.documentElement.style;
-      const accent = theme === "dark" ? "\u2600" : "\u263E";
+      const accent = "#0AC18E";
       r.setProperty("--green", accent, "important");
       r.setProperty("--green-dim", accent, "important");
       r.setProperty("--green-dark", "rgba(10,193,142,.15)", "important");
@@ -249,11 +249,11 @@
     if (!btn) return;
     if (isConnected()) {
       btn.className = "sidebar-bottom-item danger";
-      btn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\x8F\xBB</span><span class="sidebar-label">' + t("disc") + "</span>";
+      btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t("disc") + "</span>";
       btn.onclick = disconnect;
     } else {
       btn.className = "sidebar-bottom-item";
-      btn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\x8F\xBB</span><span class="sidebar-label">' + t("connect") + "</span>";
+      btn.innerHTML = '<span class="sidebar-bottom-icon">\u23FB</span><span class="sidebar-label">' + t("connect") + "</span>";
       btn.onclick = () => {
         window.location.hash = "#/auth";
       };
@@ -646,7 +646,7 @@
         }
         return { on: true, server: s.server };
       }
-      return { on: false, server: "\xE2\u20AC\u201D" };
+      return { on: false, server: "\u2014" };
     }
     if (chain.rpcKey) {
       const v = _epRead(chain.rpcKey, EP_DEFAULTS[chain.rpcKey]);
@@ -654,13 +654,13 @@
         return { on: true, server: new URL(v.replace("wss://", "https://")).hostname };
       } catch {
       }
-      return { on: !!v, server: v || "\xE2\u20AC\u201D" };
+      return { on: !!v, server: v || "\u2014" };
     }
     if (chain.id === "xmr") {
       const nodes = ["node.moneroworld.com", "xmr-node.cakewallet.com", "nodes.hashvault.pro"];
       return { on: false, server: nodes[0] };
     }
-    return { on: false, server: "\xE2\u20AC\u201D" };
+    return { on: false, server: "\u2014" };
   }
   function buildNetworksModal() {
     const overlay = document.createElement("div");
@@ -681,7 +681,7 @@
       card.className = "net-card";
       card.dataset.chain = ch.id;
       card.id = "net-card-" + ch.id;
-      card.innerHTML = '<div class="net-card-head"><div class="net-card-dot"></div><span class="net-card-name">' + ch.name + '</span><span class="net-card-proto">' + ch.proto + '</span></div><div class="net-card-server" id="net-srv-' + ch.id + '">\xE2\u20AC\u201D</div><div class="net-card-status" id="net-st-' + ch.id + '">\xE2\u20AC\u201D</div>';
+      card.innerHTML = '<div class="net-card-head"><div class="net-card-dot"></div><span class="net-card-name">' + ch.name + '</span><span class="net-card-proto">' + ch.proto + '</span></div><div class="net-card-server" id="net-srv-' + ch.id + '">\u2014</div><div class="net-card-status" id="net-st-' + ch.id + '">\u2014</div>';
       grid.appendChild(card);
     }
     modal.appendChild(grid);
@@ -714,25 +714,25 @@
   function _injectMobileNav() {
     if (document.getElementById("mob-nav")) return;
     const TABS = [
-      { icon: "\xE2\u0152\u201A", label: "Home", hash: "#/dashboard" },
-      { icon: "\xF0\u0178\u2019\xB3", label: "Wallet", hash: "#/wallet" },
-      { icon: "\xE2\u0161\u2014", label: "Fusion", hash: "#/fusion" },
-      { icon: "\xE2\u2021\u201E", label: "Swap", hash: "#/swap" },
-      { icon: "\xC2\xB7\xC2\xB7\xC2\xB7", label: "More", hash: null }
+      { icon: "\u2302", label: "Home", hash: "#/dashboard" },
+      { icon: "\u{1F4B3}", label: "Wallet", hash: "#/wallet" },
+      { icon: "\u2697", label: "Fusion", hash: "#/fusion" },
+      { icon: "\u21C4", label: "Swap", hash: "#/swap" },
+      { icon: "\xB7\xB7\xB7", label: "More", hash: null }
     ];
     const DRAWER_ITEMS = [
-      { icon: "\xF0\u0178\u2019\xAC", label: "Chat", hash: "#/chat" },
-      { icon: "\xF0\u0178\xA7\u2026", label: "Onion", hash: "#/onion" },
-      { icon: "\xF0\u0178\u201C\u0160", label: "DEX", hash: "#/dex" },
-      { icon: "\xF0\u0178\u2019\xB8", label: "Pay", hash: "#/pay" },
-      { icon: "\xF0\u0178\x8F\xA6", label: "Loan", hash: "#/loan" },
-      { icon: "\xF0\u0178\u201D\x90", label: "Vault", hash: "#/vault" },
-      { icon: "\xF0\u0178\u017D\xB2", label: "Bet", hash: "#/bet" },
-      { icon: "\xE2\u2014\u2030", label: "ID", hash: "#/id" },
-      { icon: "\xE2\xAC\xA1", label: "Mesh", hash: "#/mesh" },
-      { icon: "\xF0\u0178\u201C\u2039", label: "Sub", hash: "#/sub" },
-      { icon: "\xE2\u0161\u2122", label: "Settings", hash: "#/config" },
-      { icon: "\xF0\u0178\u201D\u2018", label: "Auth", hash: "#/auth" }
+      { icon: "\u{1F4AC}", label: "Chat", hash: "#/chat" },
+      { icon: "\u{1F9C5}", label: "Onion", hash: "#/onion" },
+      { icon: "\u{1F4CA}", label: "DEX", hash: "#/dex" },
+      { icon: "\u{1F4B8}", label: "Pay", hash: "#/pay" },
+      { icon: "\u{1F3E6}", label: "Loan", hash: "#/loan" },
+      { icon: "\u{1F510}", label: "Vault", hash: "#/vault" },
+      { icon: "\u{1F3B2}", label: "Bet", hash: "#/bet" },
+      { icon: "\u25C9", label: "ID", hash: "#/id" },
+      { icon: "\u2B21", label: "Mesh", hash: "#/mesh" },
+      { icon: "\u{1F4CB}", label: "Sub", hash: "#/sub" },
+      { icon: "\u2699", label: "Settings", hash: "#/config" },
+      { icon: "\u{1F511}", label: "Auth", hash: "#/auth" }
     ];
     const bg = document.createElement("div");
     bg.id = "mob-drawer-bg";
@@ -938,18 +938,18 @@
     bot.appendChild(themeBtn);
     const netBtn = document.createElement("button");
     netBtn.className = "sidebar-bottom-item";
-    netBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u0152\x90</span><span class="sidebar-label">Networks</span><span class="sidebar-net-dots" id="sb-net-dots"><span class="sb-dot" data-chain="bch"></span><span class="sb-dot" data-chain="btc"></span><span class="sb-dot" data-chain="eth"></span><span class="sb-dot" data-chain="xmr"></span></span>';
+    netBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F310}</span><span class="sidebar-label">Networks</span><span class="sidebar-net-dots" id="sb-net-dots"><span class="sb-dot" data-chain="bch"></span><span class="sb-dot" data-chain="btc"></span><span class="sb-dot" data-chain="eth"></span><span class="sb-dot" data-chain="xmr"></span></span>';
     netBtn.onclick = () => openNetworks();
     bot.appendChild(netBtn);
     const setBtn = document.createElement("button");
     setBtn.className = "sidebar-bottom-item";
-    setBtn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\u0161\u2122</span><span class="sidebar-label">Settings</span>';
+    setBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2699</span><span class="sidebar-label">Settings</span>';
     setBtn.onclick = () => openSettings();
     bot.appendChild(setBtn);
     if (localStorage.getItem("00wallet_vault")) {
       const keysBtn = document.createElement("button");
       keysBtn.className = "sidebar-bottom-item";
-      keysBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u201D\u2018</span><span class="sidebar-label">Export Keys</span>';
+      keysBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F511}</span><span class="sidebar-label">Export Keys</span>';
       keysBtn.onclick = () => {
         if (window.openExportKeys) window.openExportKeys();
         else window.location.href = "wallet.html?action=exportKeys";
@@ -957,7 +957,7 @@
       bot.appendChild(keysBtn);
       const walletBtn = document.createElement("button");
       walletBtn.className = "sidebar-bottom-item";
-      walletBtn.innerHTML = '<span class="sidebar-bottom-icon">\xF0\u0178\u2019\xBE</span><span class="sidebar-label">Export Wallet</span>';
+      walletBtn.innerHTML = '<span class="sidebar-bottom-icon">\u{1F4BE}</span><span class="sidebar-label">Export Wallet</span>';
       walletBtn.onclick = () => {
         if (window.exportBackup) window.exportBackup();
         else window.location.href = "wallet.html?action=exportBackup";
@@ -970,7 +970,7 @@
     bot.appendChild(discBtn);
     const colBtn = document.createElement("button");
     colBtn.className = "sidebar-bottom-item";
-    colBtn.innerHTML = '<span class="sidebar-bottom-icon">\xE2\u02DC\xB0</span><span class="sidebar-label">Collapse</span>';
+    colBtn.innerHTML = '<span class="sidebar-bottom-icon">\u2630</span><span class="sidebar-label">Collapse</span>';
     colBtn.onclick = () => {
       const isAutoCollapsed = window.matchMedia("(min-width:900px) and (max-width:1100px)").matches;
       if (isAutoCollapsed) {
