@@ -122,12 +122,20 @@
     _onConnect: ((name: string) => void) | null;
     _onSignReq: ((payload: any) => void) | null;
     _onDisconnect: (() => void) | null;
+    _stealthSpendXpub: string | null;
+    _stealthScanXpub: string | null;
 
     constructor() {
       this._priv = null; this._xonlyHex = null; this._pubHex = null;
       this._sessionId = null; this._dappPubHex = null; this._sharedKey = null;
       this._relays = []; this._subId = null; this._dappName = null;
       this._onConnect = null; this._onSignReq = null; this._onDisconnect = null;
+      this._stealthSpendXpub = null; this._stealthScanXpub = null;
+    }
+
+    /** Set stealth xpubs for WizardConnect hdwalletv1 capability advertisement. Call after wallet unlock. */
+    setStealthXpubs(spendXpub: string, scanXpub: string) {
+      this._stealthSpendXpub = spendXpub; this._stealthScanXpub = scanXpub;
     }
 
     /** Generate a new wiz:// URI and QR code data. Call before startListening(). */
@@ -162,8 +170,23 @@
         if (payload.type === 'connect') {
           this._dappName = payload.name || 'Dapp';
           this._onConnect?.(this._dappName);
-          // Acknowledge connection
-          const resp = await _encrypt(this._sharedKey, { type: 'connected', name: '00 Wallet', icon: '' });
+          // Build hdwalletv1 session with stealth capability advertisement if available
+          const paths: any[] = [];
+          const extensions: Record<string, unknown> = {};
+          if (this._stealthSpendXpub && this._stealthScanXpub) {
+            paths.push({ name: 'stealth_spend', xpub: this._stealthSpendXpub });
+            paths.push({ name: 'stealth_scan',  xpub: this._stealthScanXpub });
+            extensions['bch_stealth_bip352'] = {
+              spend_path: "m/352'/145'/0'/0'",
+              scan_path:  "m/352'/145'/0'/1'"
+            };
+          }
+          const session = paths.length
+            ? { hdwalletv1: { paths, ...(Object.keys(extensions).length ? { extensions } : {}) } }
+            : undefined;
+          const respPayload: any = { type: 'wallet_ready', name: '00 Wallet', icon: '' };
+          if (session) respPayload.session = session;
+          const resp = await _encrypt(this._sharedKey, respPayload);
           const ev2 = await _makeNostrEvent(this._priv, this._xonlyHex, WIZ_KIND,
             [['s', sid], ['p', ev.pubkey]], resp);
           _publish(this._relays, ev2);
@@ -258,8 +281,8 @@
         if (!ev.tags.find(t => t[0] === 's' && t[1] === sessionId)) return;
         let payload;
         try { payload = await _decrypt(this._sharedKey, ev.content); } catch { return; }
-        if (payload.type === 'connected') {
-          this._onConnect?.(payload.name || 'Wallet', payload.icon || '', payload.paths || []);
+        if (payload.type === 'connected' || payload.type === 'wallet_ready') {
+          this._onConnect?.(payload.name || 'Wallet', payload.icon || '', payload.session?.hdwalletv1?.paths || payload.paths || []);
         } else if (payload.type === 'disconnect') {
           this._onDisconnect?.(payload.reason || 'Disconnected');
         }

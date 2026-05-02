@@ -370,6 +370,10 @@ async function doWizardConnect() {
   async function _generateWalletQR() {
     try {
       if (!wizWalletMgr) wizWalletMgr = new WC.WalletManager();
+      const _wk = auth.getKeys();
+      if (_wk?.stealthSpendXpub && _wk?.stealthScanXpub) {
+        wizWalletMgr.setStealthXpubs(_wk.stealthSpendXpub, _wk.stealthScanXpub);
+      }
       const conn = wizWalletMgr.generateConnection();
       document.getElementById("wiz-uri-display").textContent = conn.uri;
       const QRCode = (await import("../lib/qrcode.js")).default;

@@ -117,6 +117,13 @@
       this._onConnect = null;
       this._onSignReq = null;
       this._onDisconnect = null;
+      this._stealthSpendXpub = null;
+      this._stealthScanXpub = null;
+    }
+    /** Set stealth xpubs for WizardConnect hdwalletv1 capability advertisement. Call after wallet unlock. */
+    setStealthXpubs(spendXpub, scanXpub) {
+      this._stealthSpendXpub = spendXpub;
+      this._stealthScanXpub = scanXpub;
     }
     /** Generate a new wiz:// URI and QR code data. Call before startListening(). */
     async generateConnection() {
@@ -154,7 +161,20 @@
         if (payload.type === "connect") {
           this._dappName = payload.name || "Dapp";
           this._onConnect?.(this._dappName);
-          const resp = await _encrypt(this._sharedKey, { type: "connected", name: "00 Wallet", icon: "" });
+          const paths = [];
+          const extensions = {};
+          if (this._stealthSpendXpub && this._stealthScanXpub) {
+            paths.push({ name: "stealth_spend", xpub: this._stealthSpendXpub });
+            paths.push({ name: "stealth_scan", xpub: this._stealthScanXpub });
+            extensions["bch_stealth_bip352"] = {
+              spend_path: "m/352'/145'/0'/0'",
+              scan_path: "m/352'/145'/0'/1'"
+            };
+          }
+          const session = paths.length ? { hdwalletv1: { paths, ...Object.keys(extensions).length ? { extensions } : {} } } : void 0;
+          const respPayload = { type: "wallet_ready", name: "00 Wallet", icon: "" };
+          if (session) respPayload.session = session;
+          const resp = await _encrypt(this._sharedKey, respPayload);
           const ev2 = await _makeNostrEvent(
             this._priv,
             this._xonlyHex,
@@ -268,8 +288,8 @@
         } catch {
           return;
         }
-        if (payload.type === "connected") {
-          this._onConnect?.(payload.name || "Wallet", payload.icon || "", payload.paths || []);
+        if (payload.type === "connected" || payload.type === "wallet_ready") {
+          this._onConnect?.(payload.name || "Wallet", payload.icon || "", payload.session?.hdwalletv1?.paths || payload.paths || []);
         } else if (payload.type === "disconnect") {
           this._onDisconnect?.(payload.reason || "Disconnected");
         }

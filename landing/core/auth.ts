@@ -1,4 +1,4 @@
-/* ══════════════════════════════════════════
+﻿/* ══════════════════════════════════════════
    00 Wallet — Authentication & Session
    ══════════════════════════════════════════
    Centralized auth: vault decrypt, session
@@ -11,7 +11,7 @@
 
 import { sha256 } from '../lib/noble-hashes.js';
 import { secp256k1 } from '../lib/noble-curves.js';
-import { deriveBchPriv, deriveStealth, bip32Child, bip32ChildPub, deriveAccountNode } from './hd.js';
+import { deriveBchPriv, deriveStealth, deriveStealthXpubs, bip32Child, bip32ChildPub, deriveAccountNode } from './hd.js';
 import { pubHashToCashAddr, cashAddrToHash20 } from './cashaddr.js';
 import { b2h, h2b, utf8, rand } from './utils.js';
 import { ripemd160 } from '../lib/noble-hashes.js';
@@ -59,6 +59,8 @@ interface AuthKeys {
   stealthScanPriv: Uint8Array | null;
   stealthScanPub: Uint8Array | null;
   stealthCode: string | null;
+  stealthSpendXpub: string | null;
+  stealthScanXpub: string | null;
   xmr?: unknown;
   ledger?: boolean;
   walletConnect?: boolean;
@@ -187,6 +189,8 @@ async function _deriveKeys(profile: Profile): Promise<AuthKeys | null> {
   let stealthSpendPriv = null, stealthSpendPub = null;
   let stealthScanPriv = null, stealthScanPub = null;
   let stealthCode = null;
+  let stealthSpendXpub: string | null = null;
+  let stealthScanXpub: string | null = null;
 
   if (seedHex) {
     const seed64 = h2b(seedHex);
@@ -196,6 +200,9 @@ async function _deriveKeys(profile: Profile): Promise<AuthKeys | null> {
     stealthScanPriv = stealth.scanPriv;
     stealthScanPub = stealth.scanPub;
     stealthCode = 'stealth:' + b2h(stealth.scanPub) + b2h(stealth.spendPub);
+    const xpubs = deriveStealthXpubs(seed64);
+    stealthSpendXpub = xpubs.spendXpub;
+    stealthScanXpub = xpubs.scanXpub;
   }
 
   // XMR keys (derived at m/44'/145'/0'/5/0)
@@ -221,6 +228,8 @@ async function _deriveKeys(profile: Profile): Promise<AuthKeys | null> {
     stealthScanPriv,
     stealthScanPub,
     stealthCode,
+    stealthSpendXpub,
+    stealthScanXpub,
     xmr: xmrKeys,
   };
 }
@@ -414,6 +423,8 @@ export async function connectLedger(onProgress?: (msg: string) => void): Promise
     stealthScanPriv: null,
     stealthScanPub: null,
     stealthCode: null,
+    stealthSpendXpub: null,
+    stealthScanXpub: null,
     ledger: true,            // Flag for send flow
   };
   _profile = { type: 'ledger' };
@@ -492,7 +503,7 @@ async function _finishWcSession(client: any, session: any): Promise<{ addr: stri
   _wcSubEvents(client);
   localStorage.setItem('00_wc_session', 'true');
   const sp = rand(32);
-  _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
+  _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, stealthSpendXpub: null, stealthScanXpub: null, walletConnect: true };
   _profile = { type: 'walletconnect' };
   _notifyListeners();
   return { addr: bchAddr };
@@ -549,7 +560,7 @@ export async function restoreWcSession() {
     _wcSession = client.session.get(key);
     const addrs = await client.request({ chainId: 'bch:bitcoincash', topic: _wcSession.topic, request: { method: 'bch_getAddresses', params: {} } });
     const bchAddr = addrs[0]; const sp = rand(32);
-    _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, walletConnect: true };
+    _keys = { privKey: null, pubKey: null, hash160: _cashAddrToHash20Safe(bchAddr), bchAddr, acctPriv: null, acctChain: null, sessionPriv: sp, sessionPub: b2h(secp256k1.getPublicKey(sp, true)), stealthSpendPriv: null, stealthSpendPub: null, stealthScanPriv: null, stealthScanPub: null, stealthCode: null, stealthSpendXpub: null, stealthScanXpub: null, walletConnect: true };
     _profile = { type: 'walletconnect' };
     _wcSubEvents(client); _notifyListeners();
     return true;
@@ -619,6 +630,8 @@ export async function connectTrezor(onProgress?: (msg: string) => void): Promise
     stealthScanPriv: null,
     stealthScanPub: null,
     stealthCode: null,
+    stealthSpendXpub: null,
+    stealthScanXpub: null,
     trezor: true,
   };
   _profile = { type: 'trezor' };

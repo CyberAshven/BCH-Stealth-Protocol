@@ -369,6 +369,11 @@ async function doWizardConnect() {
   async function _generateWalletQR() {
     try {
       if (!wizWalletMgr) wizWalletMgr = new WC.WalletManager();
+      // Advertise stealth capability if keys are available (hdwalletv1 standard)
+      const _wk = auth.getKeys();
+      if (_wk?.stealthSpendXpub && _wk?.stealthScanXpub) {
+        wizWalletMgr.setStealthXpubs(_wk.stealthSpendXpub, _wk.stealthScanXpub);
+      }
       const conn = wizWalletMgr.generateConnection();
       document.getElementById('wiz-uri-display').textContent = conn.uri;
 

@@ -108,6 +108,52 @@ export function deriveStealth(seed64: Uint8Array): StealthKeys {
   };
 }
 
+/* ── BIP32 xpub serialization (base58check, mainnet 0x0488B21E) ── */
+const _B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function _base58check(payload: Uint8Array): string {
+  const checksum = sha256(sha256(payload)).slice(0, 4);
+  const full = concat(payload, checksum);
+  let n = 0n;
+  for (const byte of full) n = (n << 8n) | BigInt(byte);
+  let s = '';
+  while (n > 0n) { s = _B58[Number(n % 58n)] + s; n /= 58n; }
+  for (let i = 0; i < full.length && full[i] === 0; i++) s = '1' + s;
+  return s;
+}
+
+function _makeXpub(pub: Uint8Array, chain: Uint8Array, depth: number, childNum: number, parentFp: Uint8Array): string {
+  const buf = new Uint8Array(78);
+  buf[0] = 0x04; buf[1] = 0x88; buf[2] = 0xB2; buf[3] = 0x1E;
+  buf[4] = depth;
+  buf.set(parentFp.slice(0, 4), 5);
+  buf[9] = (childNum >>> 24) & 0xff; buf[10] = (childNum >>> 16) & 0xff;
+  buf[11] = (childNum >>> 8) & 0xff; buf[12] = childNum & 0xff;
+  buf.set(chain, 13);
+  buf.set(pub, 45);
+  return _base58check(buf);
+}
+
+export interface StealthXpubs { spendXpub: string; scanXpub: string; }
+
+/** Derive xpubs for the WizardConnect hardened gate.
+ *  Dapps receive these and derive the final /0 child locally — wallet never exposes spend keys.
+ *  spend: m/352'/145'/0'/0'  (depth 4, childNum 0x80000000)
+ *  scan:  m/352'/145'/0'/1'  (depth 4, childNum 0x80000001)
+ */
+export function deriveStealthXpubs(seed64: Uint8Array): StealthXpubs {
+  const bip352 = deriveBip352Node(seed64);
+  const bip352Pub = secp256k1.getPublicKey(bip352.priv, true);
+  const parentFp = ripemd160(sha256(bip352Pub));
+
+  const spend = bip32Child(bip352.priv, bip352.chain, 0x80000000, true);
+  const scan  = bip32Child(bip352.priv, bip352.chain, 0x80000001, true);
+
+  return {
+    spendXpub: _makeXpub(secp256k1.getPublicKey(spend.priv, true), spend.chain, 4, 0x80000000, parentFp),
+    scanXpub:  _makeXpub(secp256k1.getPublicKey(scan.priv, true),  scan.chain,  4, 0x80000001, parentFp),
+  };
+}
+
 /* ── Priv → BCH address ── */
 export function privToBchAddr(priv32: Uint8Array): string {
   const pub = secp256k1.getPublicKey(priv32, true);

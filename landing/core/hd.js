@@ -58,6 +58,47 @@ function deriveStealth(seed64) {
     scanPub: secp256k1.getPublicKey(scanKey.priv, true)
   };
 }
+const _B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function _base58check(payload) {
+  const checksum = sha256(sha256(payload)).slice(0, 4);
+  const full = concat(payload, checksum);
+  let n = 0n;
+  for (const byte of full) n = n << 8n | BigInt(byte);
+  let s = "";
+  while (n > 0n) {
+    s = _B58[Number(n % 58n)] + s;
+    n /= 58n;
+  }
+  for (let i = 0; i < full.length && full[i] === 0; i++) s = "1" + s;
+  return s;
+}
+function _makeXpub(pub, chain, depth, childNum, parentFp) {
+  const buf = new Uint8Array(78);
+  buf[0] = 4;
+  buf[1] = 136;
+  buf[2] = 178;
+  buf[3] = 30;
+  buf[4] = depth;
+  buf.set(parentFp.slice(0, 4), 5);
+  buf[9] = childNum >>> 24 & 255;
+  buf[10] = childNum >>> 16 & 255;
+  buf[11] = childNum >>> 8 & 255;
+  buf[12] = childNum & 255;
+  buf.set(chain, 13);
+  buf.set(pub, 45);
+  return _base58check(buf);
+}
+function deriveStealthXpubs(seed64) {
+  const bip352 = deriveBip352Node(seed64);
+  const bip352Pub = secp256k1.getPublicKey(bip352.priv, true);
+  const parentFp = ripemd160(sha256(bip352Pub));
+  const spend = bip32Child(bip352.priv, bip352.chain, 2147483648, true);
+  const scan = bip32Child(bip352.priv, bip352.chain, 2147483649, true);
+  return {
+    spendXpub: _makeXpub(secp256k1.getPublicKey(spend.priv, true), spend.chain, 4, 2147483648, parentFp),
+    scanXpub: _makeXpub(secp256k1.getPublicKey(scan.priv, true), scan.chain, 4, 2147483649, parentFp)
+  };
+}
 function privToBchAddr(priv32) {
   const pub = secp256k1.getPublicKey(priv32, true);
   return pubHashToCashAddr(ripemd160(sha256(pub)));
@@ -111,6 +152,7 @@ export {
   deriveBchPriv,
   deriveBip352Node,
   deriveStealth,
+  deriveStealthXpubs,
   generateMnemonic,
   hmac,
   mnemonicToSeed,
