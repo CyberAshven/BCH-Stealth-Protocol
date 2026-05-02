@@ -1,0 +1,16 @@
+{
+  "name": "bch-stealth-engine",
+  "version": "1.0.1",
+  "private": true,
+  "description": "TypeScript source + compiled JS runtime for the BCH Stealth Address engine (used by the Electron Cash plugin)",
+  "main": "stealth.js",
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json",
+    "check:ts": "tsc -p tsconfig.json --noEmit",
+    "test": "node stealth.js < /dev/null || true"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.11.30"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "lib": ["ES2020", "ES2021"],
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": ".",
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": false,
+    "allowJs": false,
+    "types": ["node"]
+  },
+  "include": ["stealth.ts"],
+  "exclude": ["node_modules", "stealth.js"]
+}
