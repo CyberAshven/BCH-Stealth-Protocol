@@ -47,7 +47,10 @@ jobs:
 
           mkdir -p .sync-release
 
-          GH_TOKEN="$SYNC_TOKEN" gh api "repos/${SOURCE_REPO}/releases/tags/${TAG}" > .sync-release/src.json
+          if ! GH_TOKEN="$SYNC_TOKEN" gh api "repos/${SOURCE_REPO}/releases/tags/${TAG}" > .sync-release/src.json; then
+            echo "::warning::Unable to fetch source release metadata (API rate limit or auth issue). Skipping sync for tag ${TAG}."
+            exit 0
+          fi
 
           TITLE=$(jq -r '.name // .tag_name' .sync-release/src.json)
           BODY_FILE=.sync-release/body.md
@@ -57,12 +60,18 @@ jobs:
           IS_PRE=$(jq -r '.prerelease' .sync-release/src.json)
 
           if GH_TOKEN="$SYNC_TOKEN" gh release view "$TAG" --repo "$TARGET_REPO" >/dev/null 2>&1; then
-            GH_TOKEN="$SYNC_TOKEN" gh release edit "$TAG" --repo "$TARGET_REPO" --title "$TITLE" --notes-file "$BODY_FILE" --target "$TARGET_COMMIT"
+            if ! GH_TOKEN="$SYNC_TOKEN" gh release edit "$TAG" --repo "$TARGET_REPO" --title "$TITLE" --notes-file "$BODY_FILE" --target "$TARGET_COMMIT"; then
+              echo "::warning::Failed to edit release ${TAG} in ${TARGET_REPO}. Skipping sync."
+              exit 0
+            fi
           else
             CREATE_ARGS=(--repo "$TARGET_REPO" --title "$TITLE" --notes-file "$BODY_FILE" --target "$TARGET_COMMIT")
             if [ "$IS_DRAFT" = "true" ]; then CREATE_ARGS+=(--draft); fi
             if [ "$IS_PRE" = "true" ]; then CREATE_ARGS+=(--prerelease); fi
-            GH_TOKEN="$SYNC_TOKEN" gh release create "$TAG" "${CREATE_ARGS[@]}"
+            if ! GH_TOKEN="$SYNC_TOKEN" gh release create "$TAG" "${CREATE_ARGS[@]}"; then
+              echo "::warning::Failed to create release ${TAG} in ${TARGET_REPO}. Skipping sync."
+              exit 0
+            fi
           fi
 
           jq -r '.assets[] | @base64' .sync-release/src.json | while read -r encoded; do
@@ -71,8 +80,13 @@ jobs:
             api_url=$(echo "$row" | jq -r '.url')
             out=".sync-release/${name}"
 
-            curl -sSL -H "Authorization: Bearer ${SYNC_TOKEN}" -H "Accept: application/octet-stream" "$api_url" -o "$out"
-            GH_TOKEN="$SYNC_TOKEN" gh release upload "$TAG" "$out" --repo "$TARGET_REPO" --clobber
+            if ! curl -sSL -H "Authorization: Bearer ${SYNC_TOKEN}" -H "Accept: application/octet-stream" "$api_url" -o "$out"; then
+              echo "::warning::Failed to download asset ${name}; continuing."
+              continue
+            fi
+            if ! GH_TOKEN="$SYNC_TOKEN" gh release upload "$TAG" "$out" --repo "$TARGET_REPO" --clobber; then
+              echo "::warning::Failed to upload asset ${name}; continuing."
+            fi
           done
 
       - name: Summary
