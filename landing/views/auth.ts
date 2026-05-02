@@ -13,7 +13,7 @@ import { b2h, h2b, rand } from '../core/utils.js';
 import { navigate } from '../router.js';
 
 export const id = 'auth';
-export const title = '00 Wallet — Connect';
+export const title = 'BCH Stealth Wallet — Connect';
 export const icon = '🔐';
 
 let _container = null;
@@ -405,7 +405,7 @@ async function doWizardConnect() {
     const statusEl = document.getElementById('wiz-dapp-status');
     if (!uri) { statusEl.textContent = 'Paste a wiz:// URI'; return; }
     try {
-      wizDappMgr = new WC.DappManager('00 Protocol', 'https://0penw0rld.com/icons/00.png');
+      wizDappMgr = new WC.DappManager('BCH Stealth Wallet', 'https://bchstealthwallet.com/icons/00.png');
       wizDappMgr.onConnect((walletName, walletIcon, paths) => {
         statusEl.innerHTML = '<span style="color:#0AC18E">✓ Connected to ' + walletName + ' — ' + paths.length + ' paths</span>';
         // Store paths for use

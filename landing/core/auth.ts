@@ -507,7 +507,7 @@ async function _initWC() {
   const SC = mod.SignClient || mod.default;
   _wcClient = await SC.init({
     projectId: WC_PROJECT_ID,
-    metadata: { name: '0penw0rld', description: 'BCH Self-Custody', url: 'https://0penw0rld.com', icons: ['https://0penw0rld.com/icons/icon-180.png'] },
+    metadata: { name: 'BCH Stealth Wallet', description: 'BCH Self-Custody', url: 'https://bchstealthwallet.com', icons: ['https://bchstealthwallet.com/icons/icon-180.png'] },
   });
   return _wcClient;
 }
@@ -585,8 +585,8 @@ export async function connectTrezor(onProgress?: (msg: string) => void): Promise
       lazyLoad: true,
       popup: true,
       manifest: {
-        email: 'support@0penw0rld.com',
-        appUrl: 'https://0penw0rld.com',
+        email: 'support@bchstealthwallet.com',
+        appUrl: 'https://bchstealthwallet.com',
       },
     });
   }
