@@ -76,4 +76,4 @@ jobs:
             dist/ec-plugins/rpa-ec-plugin.zip
           overwrite_files: true
           repository: CyberAshven/00-Wallet
-          token: ${{ secrets.CYBERASHVEN_TOKEN }}
+          token: ${{ github.token }}
