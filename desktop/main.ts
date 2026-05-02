@@ -11,6 +11,9 @@ app.setPath('userData', appUserData);
 app.setPath('sessionData', appUserData);
 app.setPath('cache', appCache);
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+// Keep terminal output clean from Chromium network verbosity (e.g. TLS handshake retry noise).
+app.commandLine.appendSwitch('log-level', '3');
+app.commandLine.appendSwitch('disable-logging');
 
 function createWindow(): void {
   const win = new BrowserWindow({

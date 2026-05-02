@@ -35,6 +35,8 @@ import_electron.app.setPath("userData", appUserData);
 import_electron.app.setPath("sessionData", appUserData);
 import_electron.app.setPath("cache", appCache);
 import_electron.app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
+import_electron.app.commandLine.appendSwitch("log-level", "3");
+import_electron.app.commandLine.appendSwitch("disable-logging");
 function createWindow() {
   const win = new import_electron.BrowserWindow({
     width: 1280,

@@ -67,6 +67,15 @@ const IMPORT_TEMPLATE = `
       </div>
       <button id="auth-restore-btn" style="width:100%;padding:11px;border:1px dashed var(--dt-border,#e2e8f0);border-radius:10px;background:transparent;color:var(--dt-text-secondary,#64748b);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">📦 Restore from backup file (.0pw)</button>
       <input id="auth-restore-file" type="file" accept=".0pw,.json" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin:16px 0 12px">
+        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
+        <span style="font-size:11px;color:var(--dt-text-secondary,#64748b);font-weight:500">EXTERNAL WALLET</span>
+        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button id="auth-wc-btn" style="flex:1;padding:12px;border:1px solid #3b82f655;border-radius:10px;background:transparent;color:#2563eb;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">WalletConnect</button>
+        <button id="auth-wiz-btn" style="flex:1;padding:12px;border:1px solid #7c3aed55;border-radius:10px;background:transparent;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">WizardConnect</button>
+      </div>
     </div>
   </div>
 </div>
@@ -92,6 +101,16 @@ const UNLOCK_TEMPLATE = `
       </div>
       <button id="auth-restore-btn" style="width:100%;padding:11px;border:1px dashed var(--dt-border,#e2e8f0);border-radius:10px;background:transparent;color:var(--dt-text-secondary,#64748b);font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">📦 Restore from backup file (.0pw)</button>
       <input id="auth-restore-file" type="file" accept=".0pw,.json" style="display:none">
+      <div style="display:flex;align-items:center;gap:12px;margin:16px 0 12px">
+        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
+        <span style="font-size:11px;color:var(--dt-text-secondary,#64748b);font-weight:500">EXTERNAL WALLET</span>
+        <div style="flex:1;height:1px;background:var(--dt-border,#e2e8f0)"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button id="auth-wc-btn" style="flex:1;padding:12px;border:1px solid #3b82f655;border-radius:10px;background:transparent;color:#2563eb;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">WalletConnect</button>
+        <button id="auth-wiz-btn" style="flex:1;padding:12px;border:1px solid #7c3aed55;border-radius:10px;background:transparent;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">WizardConnect</button>
+      </div>
+      <div id="auth-hw-error" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:16px"></div>
     </div>
   </div>
 </div>
@@ -301,6 +320,8 @@ async function doWalletConnect() {
 async function doWizardConnect() {
   const WC = window.WizardConnect;
   if (!WC) { alert('WizardConnect module not loaded'); return; }
+  const keysNow = auth.getKeys() as any;
+  const hasLocalControl = !!keysNow?.privKey;
 
   // Create modal
   let modal = document.getElementById('wiz-modal');
@@ -338,8 +359,11 @@ async function doWizardConnect() {
       </div>
     </div>`;
     document.body.appendChild(modal);
+    // Auth page context: default to Dapp Mode (connect FROM external wallet)
+    document.getElementById('wiz-tab-dapp')?.click();
   } else {
     modal.style.display = 'flex';
+    document.getElementById('wiz-tab-dapp')?.click();
   }
 
   let wizWalletMgr = null;
@@ -410,9 +434,11 @@ async function doWizardConnect() {
     try {
       wizDappMgr = new WC.DappManager('BCH Stealth Wallet', 'https://0penw0rld.com/icons/00.png');
       wizDappMgr.onConnect((walletName, walletIcon, paths) => {
-        statusEl.innerHTML = '<span style="color:#0AC18E">✓ Connected to ' + walletName + ' — ' + paths.length + ' paths</span>';
-        // Store paths for use
         localStorage.setItem('00_wiz_paths', JSON.stringify(paths));
+        localStorage.setItem('00_wiz_connected', '1');
+        modal.style.display = 'none';
+        try { import('../services/balance-service.js').then(bs => bs.start(auth.getKeys())).catch(() => {}); } catch {}
+        navigate('dashboard');
       });
       wizDappMgr.onDisconnect((reason) => { statusEl.textContent = 'Disconnected: ' + reason; });
       wizDappMgr.connect(uri);
@@ -472,8 +498,18 @@ async function doWizardConnect() {
     document.getElementById('wiz-sign-approve').onclick = _approve;
   }
 
-  // Generate QR immediately (wallet mode default)
-  _generateWalletQR();
+  // If user doesn't have a local seed/hex wallet unlocked, force dapp mode (external wallet connect)
+  if (!hasLocalControl) {
+    document.getElementById('wiz-tab-wallet').style.display = 'none';
+    document.getElementById('wiz-wallet-panel').style.display = 'none';
+    document.getElementById('wiz-dapp-panel').style.display = 'block';
+    document.getElementById('wiz-tab-dapp').style.cssText = 'flex:1;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-size:12px;font-weight:600;cursor:pointer';
+    const st = document.getElementById('wiz-dapp-status');
+    if (st) st.textContent = 'Connect to an external Wizard wallet';
+  } else {
+    // Generate QR immediately (wallet mode default)
+    _generateWalletQR();
+  }
 }
 
 async function doImportBackup(file) {
@@ -565,6 +601,8 @@ function bindImportEvents() {
   document.getElementById('auth-pass2')?.addEventListener('keydown', e => { if (e.key === 'Enter') doImport(); });
   document.getElementById('auth-ledger-btn')?.addEventListener('click', doLedger);
 document.getElementById('auth-trezor-btn')?.addEventListener('click', doTrezor);
+  document.getElementById('auth-wc-btn')?.addEventListener('click', doWalletConnect);
+  document.getElementById('auth-wiz-btn')?.addEventListener('click', doWizardConnect);
   _bindRestoreBtn();
 }
 
@@ -572,6 +610,8 @@ function bindUnlockEvents() {
   document.getElementById('auth-unlock-btn')?.addEventListener('click', doUnlock);
   document.getElementById('auth-unlock-pass')?.addEventListener('keydown', e => { if (e.key === 'Enter') doUnlock(); });
   document.getElementById('auth-switch-import')?.addEventListener('click', switchToImport);
+  document.getElementById('auth-wc-btn')?.addEventListener('click', doWalletConnect);
+  document.getElementById('auth-wiz-btn')?.addEventListener('click', doWizardConnect);
   _bindRestoreBtn();
 }
 

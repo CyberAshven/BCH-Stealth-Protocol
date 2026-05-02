@@ -4,26 +4,25 @@ import * as router from "./router.js";
 import { nostrInit } from "./core/nostr-bridge.js";
 import * as balanceService from "./services/balance-service.js";
 import * as hdScanner from "./services/hd-scanner.js";
-const _V = "?v=54";
 const ROUTES = {
-  "auth": () => import("./views/auth.js" + _V),
-  "dashboard": () => import("./views/dashboard.js" + _V),
-  "wallet": () => import("./views/wallet.js" + _V),
-  "pay": () => import("./views/pay.js" + _V),
-  "swap": () => import("./views/swap.js" + _V),
-  "dex": () => import("./views/dex.js" + _V),
-  "loan": () => import("./views/loan.js" + _V),
-  "sub": () => import("./views/sub.js" + _V),
-  "chat": () => import("./views/chat.js" + _V),
-  "onion": () => import("./views/onion.js" + _V),
-  "vault": () => import("./views/vault.js" + _V),
-  "fusion": () => import("./views/fusion.js" + _V),
-  "analyse": () => import("./views/analyse.js" + _V),
-  "id": () => import("./views/id.js" + _V),
-  "mesh": () => import("./views/mesh.js" + _V),
-  "config": () => import("./views/config.js" + _V),
-  "bet": () => import("./views/bet.js" + _V),
-  "elon": () => import("./views/elon.js" + _V)
+  "auth": () => import("./views/auth.js"),
+  "dashboard": () => import("./views/dashboard.js"),
+  "wallet": () => import("./views/wallet.js"),
+  "pay": () => import("./views/pay.js"),
+  "swap": () => import("./views/swap.js"),
+  "dex": () => import("./views/dex.js"),
+  "loan": () => import("./views/loan.js"),
+  "sub": () => import("./views/sub.js"),
+  "chat": () => import("./views/chat.js"),
+  "onion": () => import("./views/onion.js"),
+  "vault": () => import("./views/vault.js"),
+  "fusion": () => import("./views/fusion.js"),
+  "analyse": () => import("./views/analyse.js"),
+  "id": () => import("./views/id.js"),
+  "mesh": () => import("./views/mesh.js"),
+  "config": () => import("./views/config.js"),
+  "bet": () => import("./views/bet.js"),
+  "elon": () => import("./views/elon.js")
 };
 async function boot() {
   state.init();
@@ -54,24 +53,32 @@ async function boot() {
     console.error("[00] nostrInit is undefined! Falling back to window._nostrInit");
     window._nostrInit?.(relays);
   }
+  router.init();
   let unlocked = false;
   if (auth.isConnected()) {
-    unlocked = await auth.tryAutoUnlock();
-    if (unlocked) {
-      balanceService.start(auth.getKeys());
-      hdScanner.scan(auth.getKeys());
-      const keys = auth.getKeys();
-      if (keys?.xmr) {
-        import("./services/xmr-scanner.js").then((xmr) => {
-          xmr.init(keys.xmr);
-          xmr.startAutoScan(6e4);
-        }).catch((e) => console.warn("[00] XMR scanner init failed:", e.message));
+    try {
+      unlocked = await auth.tryAutoUnlock();
+      if (unlocked) {
+        balanceService.start(auth.getKeys());
+        hdScanner.scan(auth.getKeys());
+        const keys = auth.getKeys();
+        if (keys?.xmr) {
+          import("./services/xmr-scanner.js").then((xmr) => {
+            xmr.init(keys.xmr);
+            xmr.startAutoScan(6e4);
+          }).catch((e) => console.warn("[00] XMR scanner init failed:", e.message));
+        }
       }
+    } catch (e) {
+      console.warn("[00] auto-unlock failed:", e?.message || e);
     }
   }
   if (!unlocked && localStorage.getItem("00_wc_session")) {
     try {
-      const restored = await auth.restoreWcSession();
+      const restored = await Promise.race([
+        auth.restoreWcSession(),
+        new Promise((resolve) => setTimeout(() => resolve(false), 6e3))
+      ]);
       if (restored) {
         unlocked = true;
         balanceService.start(auth.getKeys());
@@ -80,7 +87,6 @@ async function boot() {
       console.warn("[00] WC restore failed:", e.message);
     }
   }
-  router.init();
   if (!unlocked) {
     const hash = window.location.hash || "";
     if (!hash.includes("auth")) {

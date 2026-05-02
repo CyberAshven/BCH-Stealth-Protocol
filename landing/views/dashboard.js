@@ -408,6 +408,8 @@ function fmtPrice(p) {
 }
 function render() {
   if (!_container) return;
+  const keysNow = auth.getKeys();
+  const hasLocalControl = !!keysNow?.privKey;
   const balances = state.get("balances") || {};
   const prices = state.get("prices") || {};
   let total = 0;
@@ -490,10 +492,6 @@ function render() {
           <div style="font-size:12px;color:var(--dt-text-secondary,#64748b);margin-bottom:6px">Connections</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:11px;font-weight:600;color:var(--dt-text-secondary,#64748b)">WalletConnect</span>
-              <span id="wc-status-dot" style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block" title="Disconnected"></span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:11px;font-weight:600;color:var(--dt-text-secondary,#64748b)">WizardConnect</span>
               <span id="wiz-status-dot" style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block" title="Disconnected"></span>
               <span id="wiz-status-name" style="font-size:11px;color:var(--dt-text-secondary,#64748b)">No dapp connected</span>
@@ -501,8 +499,10 @@ function render() {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="dash-connect-wc" style="padding:8px 12px;border:1px solid #3b82f633;border-radius:8px;background:transparent;color:#2563eb;cursor:pointer;font-weight:600;font-size:13px">WalletConnect</button>
-          <button id="dash-connect-wiz" style="padding:8px 12px;border:1px solid #7c3aed33;border-radius:8px;background:transparent;color:#7c3aed;cursor:pointer;font-weight:600;font-size:13px">WizardConnect</button>
+          ${hasLocalControl ? `
+            <button id="dash-connect-wc" style="padding:8px 12px;border:1px solid #3b82f633;border-radius:8px;background:transparent;color:#2563eb;cursor:pointer;font-weight:600;font-size:13px">WalletConnect</button>
+            <button id="dash-connect-wiz" style="padding:8px 12px;border:1px solid #7c3aed33;border-radius:8px;background:transparent;color:#7c3aed;cursor:pointer;font-weight:600;font-size:13px">WizardConnect</button>
+          ` : `<span style="font-size:11px;color:var(--dt-text-secondary,#64748b);padding:8px 0">View-only mode \u2014 connect via seed phrase to host dapp sessions</span>`}
           <button id="dash-open-chat" onclick="window.location.hash='#/chat'" style="padding:8px 12px;border:1px solid #0AC18E33;border-radius:8px;background:transparent;color:#0AC18E;cursor:pointer;font-weight:600;font-size:13px">Chat</button>
         </div>
       </div>
@@ -512,7 +512,6 @@ function render() {
   </div>`;
   document.getElementById("dash-connect-wc")?.addEventListener("click", _connectWalletConnectFromDashboard);
   document.getElementById("dash-connect-wiz")?.addEventListener("click", _openWizardDappMode);
-  _updateWcStatus();
   _updateWizStatus();
 }
 function mount(container) {
