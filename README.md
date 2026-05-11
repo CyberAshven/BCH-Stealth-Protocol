@@ -48,14 +48,14 @@ NOT wire-compatible with BIP-352 silent payments (BTC); BCH has no
 Taproot. Cryptographic structure derived from BIP-352; output format
 native to BCH.
 
-Classification: Silent Reusable Payment Address (SRPA-class) scheme.
-One published paycode produces an unbounded stream of unlinkable P2PKH
-outputs. Coexists with BCH-RPA (m/47') and does not replace it.
+Classification: Stealth address scheme. One published stealth code
+produces an unbounded stream of unlinkable P2PKH outputs. Coexists
+with BCH-RPA (m/47') and does not replace it.
 
 THREAT MODEL
 ────────────
 Provides:
-  • Unlinkability between paycode and on-chain output address.
+  • Unlinkability between stealth code and on-chain output address.
   • Unlinkability between distinct payers under per-payer labels.
   • One ECDH per tx for sender and receiver, regardless of input count.
   • Resistance to CoinJoin/Fusion input-set mutation
@@ -93,19 +93,19 @@ b_spend       = m/352'/145'/a'/0'/0
 B_spend       = b_spend · G
 
 Default account is a = 0. Wallets MAY expose additional accounts
-(a = 1, 2, …) to mint fully independent paycodes for unrelated social
-contexts. Labels (below) are the default per-payer tool; account
-rotation is reserved for "burner identity" use cases.
+(a = 1, 2, …) to mint fully independent stealth codes for unrelated
+social contexts. Labels (below) are the default per-payer tool;
+account rotation is reserved for "burner identity" use cases.
 
-PAYCODE  (wire format, identical for labeled and unlabeled)
-───────────────────────────────────────────────────────────
+STEALTH CODE  (wire format, identical for labeled and unlabeled)
+────────────────────────────────────────────────────────────────
 "stealth:" || ser33(B_scan) || ser33(B_spend_m)
 
-For unlabeled global paycode, m = 0:
+For unlabeled global stealth code, m = 0:
   tweak_0   = 0
   B_spend_0 = B_spend
 
-For labeled paycode, m ≥ 1:
+For labeled stealth code, m ≥ 1:
   tweak_m   = H_tag(TAG_label, b_scan || ser32BE(m))   mod N
   B_spend_m = B_spend + tweak_m · G
 
@@ -161,7 +161,7 @@ RECEIVER
 Scan modes (decreasing privacy):
   A. Local BCHN / own indexer — leaks nothing.       (recommended)
   B. Full-block fetch via Fulcrum — leaks "this client scans the
-     chain" but NOT which paycode.                   (acceptable)
+     chain" but NOT which stealth code.              (acceptable)
   C. Per-tx blockchain.transaction.get against a third-party
      Fulcrum — FORBIDDEN unless via Tor with rotating circuits.
 
@@ -208,10 +208,10 @@ Receiver:
 Per-label policy:
   Each stored label m has a flag accept_tokens ∈
     { bch_only, ft_only, all }.
-  Senders SHOULD respect a paycode's published policy. A receiver
-  that has not enabled token-receive on label m discards token
-  outputs to that label as undeliverable (BCH amount may still be
-  claimed; token portion is unspendable until re-enabled).
+  Senders SHOULD respect a stealth code's published policy. A
+  receiver that has not enabled token-receive on label m discards
+  token outputs to that label as undeliverable (BCH amount may still
+  be claimed; token portion is unspendable until re-enabled).
 
 Privacy note:
   Stealth hides the recipient address. It does NOT hide token
