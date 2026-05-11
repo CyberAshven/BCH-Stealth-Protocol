@@ -38,8 +38,8 @@ It ships a suite of privacy primitives on top of a standard HD wallet — stealt
 Each payment derives a unique, unlinkable P2PKH address. The receiver performs **1 ECDH per TX** regardless of input count (5–10× faster than per-input scanning):
 
 ```
-BCH Stealth Protocol — Final v2 Spec
-═════════════════════════════════════
+BCH Stealth Protocol — Final Spec
+══════════════════════════════════
 
 SCOPE
 ─────
@@ -82,6 +82,9 @@ TAG_label     = "00proto/stealth/label"
 H_tag(tag,m)  = SHA256( SHA256(tag) || SHA256(tag) || m )  // BIP-340
 GAP           = 3   // consecutive-miss gap-limit for output index scan
 
+The three tag strings above are final. Once mainnet ships, any change
+constitutes a hard fork of the scheme.
+
 KEYS  (per account a, account-rotatable)
 ────────────────────────────────────────
 b_scan        = m/352'/145'/a'/1'/0
@@ -106,8 +109,8 @@ For labeled paycode, m ≥ 1:
   tweak_m   = H_tag(TAG_label, b_scan || ser32BE(m))   mod N
   B_spend_m = B_spend + tweak_m · G
 
-No version tag on the wire. Receivers MAY trial both v1 (untagged
-hashes) and v2 (tagged hashes) crypto during a deprecation window.
+No version tag on the wire. This is the first stable release; there
+is no prior on-chain crypto to support.
 
 INPUT WEIGHTING  (sender and receiver, same rules)
 ──────────────────────────────────────────────────
@@ -136,9 +139,9 @@ For each input i, contribution is:
 Sender precondition:
   Sender's own inputs MUST collectively contribute, AND for each of
   sender's inputs the sender MUST hold every revealed signing key
-  (full scalar contribution). v2 supports P2PKH and single-party
-  P2SH-multisig (sender holds every k_j). Multi-party co-signed
-  multisig is deferred to a future MULTISIG EXTENSION.
+  (full scalar contribution). This spec supports P2PKH and
+  single-party P2SH-multisig (sender holds every k_j). Multi-party
+  co-signed multisig is deferred to a future MULTISIG EXTENSION.
 
 a_sum = Σ ( scalar contributions of sender's own inputs )   mod N
 A_sum = Σ ( point  contributions of ALL contributing inputs )
