@@ -38,15 +38,21 @@ It ships a suite of privacy primitives on top of a standard HD wallet — stealt
 Each payment derives a unique, unlinkable P2PKH address. The receiver performs **1 ECDH per TX** regardless of input count (5–10× faster than per-input scanning):
 
 ```
-Sender:   a_sum        = Σ input_privkeys  mod N
-          A_sum        = a_sum × G
-          input_hash   = SHA256(smallest_outpoint || A_sum)
-          shared       = (a_sum × input_hash) × B_scan
-          t            = SHA256(sharedX || ser32(k))
-          outputAddr   = P2PKH(B_spend + t·G)
+Per-input weight (BIP-352 style):
+          op_min       = min{ outpoint_i }            (byte-lex, 32-byte txid LE || 4-byte vout LE)
+          h_i          = SHA256(op_min || P_i)  mod N      for each input i with pubkey P_i = a_i·G
 
-Receiver: shared       = (b_scan × input_hash) × A_sum   ← same value
-          → same t → same address
+Sender:   a_sum        = Σ ( h_i · a_i )              mod N
+          A_sum        = Σ ( h_i · P_i )              = a_sum · G
+          shared       = a_sum · B_scan
+          sharedX      = x-coord(shared)
+          t            = SHA256(sharedX || ser32LE(k))     mod N    (k = output index, 0,1,2,…)
+          outputAddr   = P2PKH( B_spend + t·G )
+
+Receiver: A_sum        = Σ ( h_i · P_i )                            ← rebuilt from on-chain input pubkeys
+          shared       = b_scan · A_sum                              ← same point
+          → same sharedX → same t → same address
+          spendPriv    = ( b_spend + t ) mod N
 ```
 
 No OP_RETURN, no notification transaction. Outputs are indistinguishable from standard P2PKH.
