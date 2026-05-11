@@ -50,7 +50,7 @@ native to BCH.
 
 Classification: Stealth address scheme. One published stealth code
 produces an unbounded stream of unlinkable P2PKH outputs. Coexists
-with BCH-RPA (m/47') and does not replace it.
+with BCH-RPA (m/47') its different trade offs
 
 THREAT MODEL
 ────────────
