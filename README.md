@@ -44,8 +44,33 @@ BCH Stealth Protocol — Final v2 Spec
 SCOPE
 ─────
 BCH-native stealth payments using ECDH-derived one-time P2PKH outputs.
-NOT wire-compatible with BIP-352 silent payments (BTC); BCH has no Taproot.
-Cryptographic structure derived from BIP-352; output format native to BCH.
+NOT wire-compatible with BIP-352 silent payments (BTC); BCH has no
+Taproot. Cryptographic structure derived from BIP-352; output format
+native to BCH.
+
+Classification: Silent Reusable Payment Address (SRPA-class) scheme.
+One published paycode produces an unbounded stream of unlinkable P2PKH
+outputs. Coexists with BCH-RPA (m/47') and does not replace it.
+
+THREAT MODEL
+────────────
+Provides:
+  • Unlinkability between paycode and on-chain output address.
+  • Unlinkability between distinct payers under per-payer labels.
+  • One ECDH per tx for sender and receiver, regardless of input count.
+  • Resistance to CoinJoin/Fusion input-set mutation
+    (per-input weighting).
+
+Does NOT provide:
+  • Amount/timing privacy on a single receive. (Use CashFusion after.)
+  • Script-policy privacy. Multisig or covenant spends still reveal
+    the redeem script via P2SH. Stealth helps the receive side; the
+    spend side leaks policy.
+  • Token-content privacy. CashTokens FT amounts and NFT commitments
+    are visible on chain.
+  • Network-level privacy. Receivers MUST use a local indexer or Tor
+    (see RECEIVER scan modes). A third-party Fulcrum can fingerprint
+    a scanning client.
 
 CONSTANTS
 ─────────
@@ -54,7 +79,7 @@ G             = secp256k1 generator
 TAG_h         = "00proto/stealth/inputs"
 TAG_t         = "00proto/stealth/shared"
 TAG_label     = "00proto/stealth/label"
-H_tag(tag,m)  = SHA256( SHA256(tag) || SHA256(tag) || m )    // BIP-340 tagged
+H_tag(tag,m)  = SHA256( SHA256(tag) || SHA256(tag) || m )  // BIP-340
 GAP           = 3   // consecutive-miss gap-limit for output index scan
 
 KEYS  (per account a, account-rotatable)
@@ -63,6 +88,11 @@ b_scan        = m/352'/145'/a'/1'/0
 B_scan        = b_scan · G
 b_spend       = m/352'/145'/a'/0'/0
 B_spend       = b_spend · G
+
+Default account is a = 0. Wallets MAY expose additional accounts
+(a = 1, 2, …) to mint fully independent paycodes for unrelated social
+contexts. Labels (below) are the default per-payer tool; account
+rotation is reserved for "burner identity" use cases.
 
 PAYCODE  (wire format, identical for labeled and unlabeled)
 ───────────────────────────────────────────────────────────
@@ -76,31 +106,39 @@ For labeled paycode, m ≥ 1:
   tweak_m   = H_tag(TAG_label, b_scan || ser32BE(m))   mod N
   B_spend_m = B_spend + tweak_m · G
 
-No version tag on the wire. Receivers MAY trial both v1 (untagged hashes)
-and v2 (tagged hashes) crypto during a deprecation window.
+No version tag on the wire. Receivers MAY trial both v1 (untagged
+hashes) and v2 (tagged hashes) crypto during a deprecation window.
 
 INPUT WEIGHTING  (sender and receiver, same rules)
 ──────────────────────────────────────────────────
 op_min = byte-lex min{ outpoint_i }
          outpoint_i = txid_internal_LE(32) || vout_LE(4)
-         over ALL tx inputs (including non-contributing peer inputs)
+         over ALL tx inputs (including non-contributing peer inputs).
 
 For each input i, contribution is:
-  case P2PKH (33-byte compressed pubkey P_i in scriptSig):
-    h_i  = H_tag(TAG_h, op_min || P_i)        mod N
-    contributes scalar h_i · a_i and point h_i · P_i
 
-  case P2SH-multisig (revealed redeemScript with compressed keys K_j):
-    h_i_j = H_tag(TAG_h, op_min || K_j || ser32BE(j))   mod N
-    contributes scalar Σ_j h_i_j · k_j  (using only the keys the
-      signer holds; others contribute as h_i_j · K_j on the point side
-      via signature-extracted pubkeys, which is consistent for receiver)
-    contributes point Σ_j h_i_j · K_j
+  case P2PKH (33-byte compressed pubkey P_i in scriptSig):
+    h_i  = H_tag(TAG_h, op_min || P_i)   mod N
+    point  contribution: h_i · P_i
+    scalar contribution (sender only): h_i · a_i
+
+  case P2SH (revealed redeemScript with N compressed keys K_0..K_{N-1}):
+    For each key K_j in redeemScript order:
+      h_i_j = H_tag(TAG_h, op_min || K_j || ser32BE(j))   mod N
+    point  contribution (sender AND receiver, from on-chain data):
+      Σ_j ( h_i_j · K_j )
+    scalar contribution (sender only, from privkeys it holds):
+      Σ_{j : sender holds k_j} ( h_i_j · k_j )
 
   case other:
     no contribution. Tx is still scan-eligible if ≥1 input contributes.
 
-  Precondition for sender: own inputs MUST collectively contribute.
+Sender precondition:
+  Sender's own inputs MUST collectively contribute, AND for each of
+  sender's inputs the sender MUST hold every revealed signing key
+  (full scalar contribution). v2 supports P2PKH and single-party
+  P2SH-multisig (sender holds every k_j). Multi-party co-signed
+  multisig is deferred to a future MULTISIG EXTENSION.
 
 a_sum = Σ ( scalar contributions of sender's own inputs )   mod N
 A_sum = Σ ( point  contributions of ALL contributing inputs )
@@ -108,58 +146,104 @@ A_sum = Σ ( point  contributions of ALL contributing inputs )
 SENDER
 ──────
   shared       = a_sum · B_scan                  // single ECDH
-  sharedX      = x-coord(shared)
-  For each stealth output k = 0,1,2,…:
+  sharedX      = x-coord(shared)                 // 32 bytes
+  For each stealth output k = 0, 1, 2, …:
     t_k        = H_tag(TAG_t, sharedX || ser32BE(k))   mod N
     output_k   = P2PKH( B_spend_m + t_k · G )
 
-  Self-change outputs use the SAME path with own (B_scan, B_spend).
+Self-change outputs use the SAME path with own (B_scan, B_spend).
 
 RECEIVER
 ────────
-  Scan modes (decreasing privacy):
-    A. Local BCHN / own indexer — leaks nothing.        (recommended)
-    B. Full-block fetch via Fulcrum — leaks "scans chain"
-       but NOT which paycode.                           (acceptable)
-    C. Per-tx fetch against third-party Fulcrum —
-       FORBIDDEN unless via Tor with rotating circuits.
-  Optional NIP-59 gift-wrapped Nostr beacon hint may accompany A/B/C
-  for latency; never authoritative.
+Scan modes (decreasing privacy):
+  A. Local BCHN / own indexer — leaks nothing.       (recommended)
+  B. Full-block fetch via Fulcrum — leaks "this client scans the
+     chain" but NOT which paycode.                   (acceptable)
+  C. Per-tx blockchain.transaction.get against a third-party
+     Fulcrum — FORBIDDEN unless via Tor with rotating circuits.
 
-  For each candidate tx:
-    Recompute op_min, the contributing input set, A_sum.
-    If A_sum is the identity (no contributing inputs), skip.
-    shared       = b_scan · A_sum
-    sharedX      = x-coord(shared)
+Optional NIP-59 gift-wrapped Nostr beacon hint may accompany A/B/C
+for latency. Hints are never authoritative; on-chain verification is
+required.
 
-    miss_streak = 0
-    For k = 0, 1, 2, …:
-      t_k        = H_tag(TAG_t, sharedX || ser32BE(k))   mod N
-      matched_this_k = false
-      For each m ∈ { 0 } ∪ stored_labels:
-        P_out    = B_spend_m + t_k · G
-        h160     = HASH160(ser33(P_out))
-        if any tx output is P2PKH(h160):
-          record { txid, vout, value, k, m }
-          spendPriv = ( b_spend + tweak_m + t_k )   mod N
-          matched_this_k = true
-      if matched_this_k: miss_streak = 0
-      else:              miss_streak += 1
-      if miss_streak ≥ GAP: break
+For each candidate tx:
+  Recompute op_min, the contributing input set, A_sum.
+  If A_sum is the identity (no contributing inputs), skip.
+  shared       = b_scan · A_sum
+  sharedX      = x-coord(shared)
+
+  miss_streak = 0
+  For k = 0, 1, 2, …:
+    t_k        = H_tag(TAG_t, sharedX || ser32BE(k))   mod N
+    matched_this_k = false
+    For each m ∈ { 0 } ∪ stored_labels:
+      P_out    = B_spend_m + t_k · G
+      h160     = HASH160(ser33(P_out))
+      if any tx output is P2PKH(h160):
+        record { txid, vout, value, tokenData, k, m }
+        spendPriv = ( b_spend + tweak_m + t_k )   mod N
+        matched_this_k = true
+    if matched_this_k: miss_streak = 0
+    else:              miss_streak += 1
+    if miss_streak ≥ GAP: break
+
+CASHTOKENS
+──────────
+Stealth outputs MAY carry CashTokens via the standard token_data
+field attached to the P2PKH locking script. The stealth derivation
+is unchanged.
+
+Sender:
+  May attach token_data (FT amount, NFT category+commitment, or both)
+  to any output_k. Receiver MUST treat the output's token_data as
+  part of the payment.
+
+Receiver:
+  After P2PKH hash160 matches, parse token_data alongside the BCH
+  value and record { txid, vout, value, tokenData, k, m }.
+
+Per-label policy:
+  Each stored label m has a flag accept_tokens ∈
+    { bch_only, ft_only, all }.
+  Senders SHOULD respect a paycode's published policy. A receiver
+  that has not enabled token-receive on label m discards token
+  outputs to that label as undeliverable (BCH amount may still be
+  claimed; token portion is unspendable until re-enabled).
+
+Privacy note:
+  Stealth hides the recipient address. It does NOT hide token
+  contents. NFTs with publicly recognizable commitments leak
+  identity at the output level regardless of stealth.
 
 STORAGE
 ───────
-  Stealth UTXO cache MUST NOT store privkeys in plaintext at rest.
-  Either encrypt under the vault key, or store only
-  { addr, k, m, txid, vout, value } and re-derive privkey on spend.
+Stealth UTXO cache MUST NOT store privkeys in plaintext at rest.
+Wallets MUST either encrypt the cache under the vault key, or store
+only { addr, k, m, txid, vout, value, tokenData } and re-derive the
+privkey on spend.
 
 RECOMMENDED PRIVACY FLOW
 ────────────────────────
   payer ──stealth send──▶ recipient stealth UTXO
                             │
                             └─CashFusion──▶ multiple fresh stealth UTXOs
-  Single stealth receive without subsequent fusion provides
-  sender↔recipient unlinkability but not amount/timing unlinkability.
+                                            (self-payments at k>0)
+
+A single stealth receive without subsequent fusion provides
+sender↔recipient unlinkability but not amount/timing unlinkability.
+Wallets SHOULD default to fusing newly received stealth UTXOs before
+spending.
+
+WIZARDCONNECT COMPATIBILITY
+───────────────────────────
+The hardened-gate handshake (Unified Handshake spec) is unchanged.
+Existing PathNames and sign_transaction_request / stealthTweak flow
+are sufficient. No new WizardConnect methods are proposed.
+
+For remote-wallet sends, the wallet performs a_sum / sharedX
+derivation internally (privkeys never leave the wallet) and returns
+the fully-signed tx via sign_transaction_request. Receiving and RPA
+are entirely wallet-local.
 ```
 
 No OP_RETURN, or notification transaction. Outputs are indistinguishable from standard P2PKH.
