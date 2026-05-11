@@ -38,21 +38,84 @@ It ships a suite of privacy primitives on top of a standard HD wallet — stealt
 Each payment derives a unique, unlinkable P2PKH address. The receiver performs **1 ECDH per TX** regardless of input count (5–10× faster than per-input scanning):
 
 ```
-Per-input weight (BIP-352 style):
-          op_min       = min{ outpoint_i }            (byte-lex, 32-byte txid LE || 4-byte vout LE)
-          h_i          = SHA256(op_min || P_i)  mod N      for each input i with pubkey P_i = a_i·G
+Constants
+─────────
+N            = secp256k1 group order
+G            = secp256k1 generator
+TAG_h        = "00proto/stealth/inputs"           // NEW  domain separation
+TAG_t        = "00proto/stealth/shared"           // NEW
+TAG_label    = "00proto/stealth/label"            // NEW
+H_tag(tag,m) = SHA256( SHA256(tag) || SHA256(tag) || m )   // BIP-340 tagged hash
 
-Sender:   a_sum        = Σ ( h_i · a_i )              mod N
-          A_sum        = Σ ( h_i · P_i )              = a_sum · G
-          shared       = a_sum · B_scan
-          sharedX      = x-coord(shared)
-          t            = SHA256(sharedX || ser32LE(k))     mod N    (k = output index, 0,1,2,…)
-          outputAddr   = P2PKH( B_spend + t·G )
+Keys (per account a, account-rotatable for unlinkability)
+────────────────────────────────────────────────────────
+b_scan       = m/352'/145'/a'/1'/0      scan privkey
+B_scan       = b_scan · G               scan pubkey
+b_spend      = m/352'/145'/a'/0'/0      spend privkey
+B_spend      = b_spend · G              spend pubkey
 
-Receiver: A_sum        = Σ ( h_i · P_i )                            ← rebuilt from on-chain input pubkeys
-          shared       = b_scan · A_sum                              ← same point
-          → same sharedX → same t → same address
-          spendPriv    = ( b_spend + t ) mod N
+Paycode      = "stealth:" || ser33(B_scan) || ser33(B_spend)
+               (one paycode per account a; rotate a for unrelated social contexts)
+
+Labels (per-payer tagging)                                              // NEW
+──────────────────────────
+For each payer/invoice m ∈ ℕ:
+  tweak_m    = H_tag(TAG_label, b_scan || ser32BE(m))  mod N
+  B_spend_m  = B_spend + tweak_m · G
+Sender uses (B_scan, B_spend_m) instead of (B_scan, B_spend).
+Receiver stores {tweak_m} and trial-adds each during scan.
+m=0 is reserved for "unlabeled" → B_spend_0 = B_spend.
+
+Per-input weight (sender's inputs only; all must be P2PKH/compressed)   // hardened
+────────────────────────────────────────────────────────────────────
+Precondition: every sender input i is bare P2PKH with a 33-byte
+compressed pubkey P_i; else abort (do not silently drop).
+
+  op_min     = min{ outpoint_i }
+               outpoint_i = txid_internal_LE(32) || vout_LE(4)
+  h_i        = H_tag(TAG_h, op_min || P_i)  mod N        // NEW tagged
+
+Sender
+──────
+  a_sum      = Σ ( h_i · a_i )           mod N
+  A_sum      = Σ ( h_i · P_i )           = a_sum · G
+  shared     = a_sum · B_scan                            // single ECDH
+  sharedX    = x-coord(shared)                           // 32 bytes
+  t_k        = H_tag(TAG_t, sharedX || ser32BE(k))  mod N  // NEW tagged, BE
+  outputAddr_k = P2PKH( B_spend_m + t_k · G )
+
+  k indexes the sender's stealth outputs in this tx, k = 0,1,2,…
+  Self-change outputs use this SAME path (no separate single-input
+  derivation) — uniform code path.                                      // NEW
+
+Receiver scan (per tx)
+──────────────────────
+  Collect input pubkeys {P_i} from on-chain scriptSigs
+  (P2PKH + 33-byte compressed only; skip tx if any input is non-P2PKH)
+  op_min, h_i, A_sum   ← recompute identically
+  shared      = b_scan · A_sum                           // single ECDH
+  sharedX     = x-coord(shared)
+
+  For k = 0, 1, 2, …  (unbounded, with gap-limit GAP = 3):              // NEW
+    t_k       = H_tag(TAG_t, sharedX || ser32BE(k))  mod N
+    For each label m ∈ {0} ∪ stored_labels:                             // NEW
+      P_out   = B_spend_m + t_k · G
+      h160    = HASH160(ser33(P_out))
+      if any tx output is P2PKH(h160):
+        record { txid, vout, value, k, m }
+        spendPriv = ( b_spend + tweak_m + t_k )  mod N                  // NEW
+    if no match at this k for `GAP` consecutive k → stop.
+
+Storage
+───────
+  At-rest stealth UTXO cache MUST encrypt privkeys (or omit them
+  and re-derive on spend). No plaintext keys in localStorage.           // NEW
+
+Network
+───────
+  Scan queries MUST go through the user's own indexer or Tor.           // NEW
+  Per-tx Electrum fetches against a third-party Fulcrum leak the
+  receiver's interest set.
 ```
 
 No OP_RETURN, no notification transaction. Outputs are indistinguishable from standard P2PKH.
