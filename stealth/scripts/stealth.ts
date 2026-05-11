@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 /**
- * 00 Protocol — Stealth Address Engine for Electron Cash Plugin (TypeScript source)
+ * 00 Protocol — BCH Stealth Address Engine (TypeScript source)
+ *
+ * Implements the BCH Stealth Protocol final spec:
+ *   • Per-input weighted aggregation (CoinJoin-resistant), 1 ECDH per tx.
+ *   • BIP-340 tagged hashes with locked domain tags (see TAG_* constants).
+ *   • Per-payer labels: B_spend_m = B_spend + tweak_m·G.
+ *   • GAP-limit (=3) unbounded k scan per label.
+ *   • BIP-32 derivation at m/352'/145'/<account>'/{0',1'}/0
+ *     (hardened {0',1'} gates provide scan/spend isolation).
+ *   • Raw-key import is intentionally NOT supported.
  *
  * TypeScript twin of `stealth.js`. Keeps 100% behavioral parity with the JS
  * runtime engine. Edit this file, then run `npm run build:ts` in
  * `stealth/scripts/` to regenerate `stealth.js`.
- *
- * BIP352 paths: m/352'/145'/0'/0'/0 (spend), m/352'/145'/0'/1'/0 (scan)
  */
 
 import * as crypto from 'crypto';
@@ -32,17 +39,17 @@ export interface DetectedOutput { vin: number; vout: number; value: number; addr
 export interface NostrRumor { kind: number; content?: string; tags?: string[][]; created_at?: number }
 export interface NostrEvent { kind: number; pubkey: HexString; created_at: number; tags: string[][]; content: string; id?: HexString; sig?: HexString }
 export type BridgeRequest =
-  | { action: 'derive_keys'; params: { masterPriv: HexString; masterChain: HexString } }
-  | { action: 'derive_keys_from_seed'; params: { seed: string } }
+  | { action: 'derive_keys'; params: { masterPriv: HexString; masterChain: HexString; account?: number } }
+  | { action: 'derive_keys_from_seed'; params: { seed: string; account?: number } }
   | { action: 'derive_keys_from_account'; params: { acctPrivHex: HexString; acctChainHex: HexString } }
-  | { action: 'derive_keys_raw'; params: { rawPrivKey: HexString } }
-  | { action: 'make_paycode'; params: { scanPub: HexString; spendPub: HexString } }
+  | { action: 'make_paycode'; params: { scanPub: HexString; spendPub: HexString; scanPriv?: HexString; label?: number } }
   | { action: 'parse_paycode'; params: { paycode: string } }
-  | { action: 'derive_address'; params: { senderPrivs?: HexString[]; outpoints?: Outpoint[]; senderPriv?: HexString; outpoint?: HexString; recipScanPub: HexString; recipSpendPub: HexString } }
-  | { action: 'spending_key'; params: { spendPriv: HexString; c: HexString } }
-  | { action: 'detect_payment'; params: { rawTxHex: HexString; scanPriv: HexString; spendPub: HexString } }
+  | { action: 'label_tweak'; params: { scanPriv: HexString; label: number } }
+  | { action: 'derive_address'; params: { senderPrivs?: HexString[]; outpoints?: Outpoint[]; senderPriv?: HexString; outpoint?: HexString; recipScanPub: HexString; recipSpendPub: HexString; k?: number } }
+  | { action: 'spending_key'; params: { spendPriv: HexString; c: HexString; tweakM?: HexString; scanPriv?: HexString; label?: number } }
+  | { action: 'detect_payment'; params: { rawTxHex: HexString; scanPriv: HexString; spendPub: HexString; labels?: number[] } }
   | { action: 'parse_tx'; params: { rawTxHex: HexString } }
-  | { action: 'scan_indexer'; params: { scanPriv: HexString; spendPub: HexString; fromHeight: number; toHeight: number; indexerUrl?: string } }
+  | { action: 'scan_indexer'; params: { scanPriv: HexString; spendPub: HexString; fromHeight: number; toHeight: number; indexerUrl?: string; labels?: number[] } }
   | { action: 'nip44_encrypt'; params: { myPriv: HexString; recipPubXOnly: HexString; plaintext: string } }
   | { action: 'nip44_decrypt'; params: { myPriv: HexString; senderPubXOnly: HexString; payload: string } }
   | { action: 'nip59_wrap'; params: { senderPriv: HexString; recipPubXOnly: HexString; rumor: NostrRumor } }
@@ -194,6 +201,50 @@ function hash160ToCashAddr(h160, prefix = 'bitcoincash') {
 function taggedHash(tag, data) {
   const th = sha256(Buffer.from(tag, 'utf8'));
   return sha256(Buffer.concat([th, th, data]));
+}
+
+// ══════════════════════════════════════════
+// BCH STEALTH PROTOCOL — LOCKED CONSTANTS (final spec)
+// ══════════════════════════════════════════
+// These three tag strings are normative. Changing any of them after mainnet
+// constitutes a hard fork of the scheme. Keep in sync with the public spec
+// and with plugin.py.
+const TAG_H     = '00proto/stealth/inputs';   // per-input weighting h_i
+const TAG_T     = '00proto/stealth/shared';   // per-output tweak    t_k
+const TAG_LABEL = '00proto/stealth/label';    // per-payer label     tweak_m
+const GAP       = 3;                          // consecutive-miss gap-limit
+
+// BIP-340 tagged hashes for the three stealth domains, returning a Buffer.
+function hTagInputs(data: Buffer): Buffer { return taggedHash(TAG_H,     data); }
+function hTagShared(data: Buffer): Buffer { return taggedHash(TAG_T,     data); }
+function hTagLabel (data: Buffer): Buffer { return taggedHash(TAG_LABEL, data); }
+
+// Reduce a 32-byte hash to a non-zero scalar mod N.
+function hashToScalar(h: Buffer): bigint {
+  const v = BigInt('0x' + h.toString('hex')) % N;
+  return v;
+}
+
+// 4-byte big-endian serialization (spec uses ser32BE for k and m indices).
+function ser32BE(n: number): Buffer {
+  const b = Buffer.alloc(4); b.writeUInt32BE(n >>> 0); return b;
+}
+
+// Per-payer label tweak: tweak_m = H_tag(TAG_label, b_scan || ser32BE(m)) mod N.
+// m = 0 is reserved for the unlabeled global stealth code (tweak_0 = 0).
+function labelTweakMod(scanPrivHex: HexString, m: number): bigint {
+  if (m === 0) return 0n;
+  const t = hTagLabel(Buffer.concat([Buffer.from(scanPrivHex, 'hex'), ser32BE(m)]));
+  return hashToScalar(t);
+}
+
+// Apply label tweak to the spend pubkey: B_spend_m = B_spend + tweak_m·G.
+function applyLabelToSpendPub(spendPubHex: HexString, tweak_m: bigint): HexString {
+  if (tweak_m === 0n) return spendPubHex;
+  const [sx, sy] = decompressPoint(spendPubHex);
+  const [tx, ty] = pointMul(tweak_m);
+  const [rx, ry] = pointAdd(sx, sy, tx, ty);
+  return compressPoint(rx, ry);
 }
 
 // Returns x-only pubkey (32 bytes) for a private key.
@@ -398,8 +449,11 @@ function nip59Unwrap(recipPrivHex, wrap) {
 // ══════════════════════════════════════════
 
 /**
- * Legacy single-input ECDH (kept for backward compat).
- * Used when only one input privkey is available (v1 payments).
+ * DEPRECATED: legacy single-input ECDH retained ONLY for parsing/test fixtures.
+ * The final spec mandates per-input weighted aggregation via
+ * `stealthDeriveAggregated` even for single-input transactions. Senders MUST
+ * use the senderPrivs[] / outpoints[] form of `derive_address`. Do not call
+ * this function from new code.
  */
 function stealthDerive(privHex, pubHex, spendPubHex, outpointHex) {
   const priv = BigInt('0x' + privHex);
@@ -418,27 +472,13 @@ function stealthDerive(privHex, pubHex, spendPubHex, outpointHex) {
 }
 
 /**
- * Aggregated ECDH — per-input hashed aggregation, 1 ECDH per TX.
+ * Compute (op_min, A_sum, sharedX) for a tx's contributing inputs.
+ * Returns null if no inputs contribute.
  *
- * For each input i with pubkey A_i:
- *   h_i       = SHA256(smallest_outpoint || A_i) mod N
- *   A_tweaked = Σ h_i · A_i
- *   shared    = b_scan · A_tweaked
- *
- * Per-input hashing (vs BIP352's H(op || A_sum) · A_sum) makes CoinJoin
- * key-cancellation infeasible: a malicious participant cannot pick A_1 to
- * steer A_tweaked because each h_i depends on its own A_i. For single-input
- * TXs this reduces to h_0 · b_scan · A_0, equivalent to the BIP352 form for
- * n = 1.
- *
- * @param {string}   scanPrivHex  - Scan private key (32 bytes hex)
- * @param {string}   spendPubHex  - Spend public key (33 bytes hex)
- * @param {Array}    inputs       - [{ pubkey: hex, outpointTxidBE: hex, outpointVout: number }]
- * @returns {Array}               - [{ addr, pub, c, k }] for k=0,1,2 where output is matched
- *                                  (returns all derived outputs — caller filters on-chain)
+ * @param scanPrivHex - b_scan
+ * @param inputs      - [{ pubkey, outpointTxidBE, outpointVout }]
  */
-function stealthDeriveAggregated(scanPrivHex, spendPubHex, inputs) {
-  // 1. Collect valid input pubkey points
+function stealthSharedX(scanPrivHex: HexString, inputs: any[]): Buffer | null {
   const points = [];
   for (const inp of inputs) {
     try {
@@ -446,72 +486,154 @@ function stealthDeriveAggregated(scanPrivHex, spendPubHex, inputs) {
       points.push({ pubHex: inp.pubkey, x: px, y: py });
     } catch { continue; }
   }
-  if (points.length === 0) return [];
+  if (points.length === 0) return null;
 
-  // 2. Smallest outpoint: lex-min of (txid_LE || vout_LE)
-  //    outpointTxidBE is big-endian (human-readable) → reverse to LE for wire comparison
-  let smallest = null;
+  let smallest: Buffer | null = null;
   for (const inp of inputs) {
     if (!inp.outpointTxidBE) continue;
     const txidLE = Buffer.from(inp.outpointTxidBE, 'hex').reverse();
-    const voutBuf = Buffer.alloc(4);
-    voutBuf.writeUInt32LE(inp.outpointVout || 0);
+    const voutBuf = Buffer.alloc(4); voutBuf.writeUInt32LE(inp.outpointVout || 0);
     const outpoint = Buffer.concat([txidLE, voutBuf]);
     if (!smallest || outpoint.compare(smallest) < 0) smallest = outpoint;
   }
-  if (!smallest) return [];
+  if (!smallest) return null;
 
-  // 3. A_tweaked = Σ h_i · A_i  where h_i = SHA256(smallest_outpoint || A_i) mod N
-  let aggX = null, aggY = null;
+  let aggX: bigint | null = null, aggY: bigint = 0n;
   for (const pt of points) {
-    const h = sha256(Buffer.concat([smallest, Buffer.from(pt.pubHex, 'hex')]));
-    const hBig = BigInt('0x' + h.toString('hex')) % N;
+    const hBig = hashToScalar(hTagInputs(Buffer.concat([smallest, Buffer.from(pt.pubHex, 'hex')])));
     if (hBig === 0n) continue;
     const [tx, ty] = pointMul(hBig, pt.x, pt.y);
     if (aggX === null) { aggX = tx; aggY = ty; }
     else {
       const [rx, ry] = pointAdd(aggX, aggY, tx, ty);
-      if (rx === 0n && ry === 0n) return []; // aggregate at infinity — skip TX
+      if (rx === 0n && ry === 0n) return null;
       aggX = rx; aggY = ry;
     }
   }
-  if (aggX === null) return [];
+  if (aggX === null) return null;
 
-  // 4. shared = b_scan · A_tweaked
   const b_scan = BigInt('0x' + scanPrivHex) % N;
   const [shared_x] = pointMul(b_scan, aggX, aggY);
-  const sharedXBuf = Buffer.from(shared_x.toString(16).padStart(64, '0'), 'hex');
+  return Buffer.from(shared_x.toString(16).padStart(64, '0'), 'hex');
+}
 
-  // 5. Derive output for k = 0, 1, 2
-  const results = [];
-  const [spendX, spendY] = decompressPoint(spendPubHex);
-  for (let k = 0; k < 3; k++) {
-    const kBuf = Buffer.alloc(4);
-    kBuf.writeUInt32LE(k);
-    const t = sha256(Buffer.concat([sharedXBuf, kBuf]));
-    const tBig = BigInt('0x' + t.toString('hex')) % N;
-    const [tweakX, tweakY] = pointMul(tBig);
-    const [stealthX, stealthY] = pointAdd(spendX, spendY, tweakX, tweakY);
-    if (stealthX === 0n && stealthY === 0n) break;
-    const stealthPub = compressPoint(stealthX, stealthY);
-    const h160 = hash160(Buffer.from(stealthPub, 'hex'));
-    results.push({
-      addr: hash160ToCashAddr(h160),
-      pub: stealthPub,
-      c: tBig.toString(16).padStart(64, '0'),
-      k,
-    });
+/**
+ * Precompute B_spend_m points for the requested label set (m=0 always included).
+ */
+function precomputeLabeledSpends(scanPrivHex: HexString, spendPubHex: HexString, labels: number[]) {
+  const ms = Array.from(new Set<number>([0, ...labels.filter(m => m && m > 0)]));
+  const out: { m: number; X: bigint; Y: bigint; tweak_m: bigint }[] = [];
+  for (const m of ms) {
+    const tweak_m = labelTweakMod(scanPrivHex, m);
+    const pubM = applyLabelToSpendPub(spendPubHex, tweak_m);
+    const [X, Y] = decompressPoint(pubM);
+    out.push({ m, X, Y, tweak_m });
+  }
+  return out;
+}
+
+/**
+ * Aggregated ECDH — receiver scan. 1 ECDH per TX, per-label GAP-limit when
+ * an on-chain script set is supplied; otherwise bounded by maxK.
+ *
+ * Final spec (BCH Stealth Protocol):
+ *   op_min   = byte-lex min{ outpoint_i = txid_LE(32) || vout_LE(4) }
+ *   h_i      = H_tag(TAG_H, op_min || P_i) mod N           (P2PKH)
+ *   A_sum    = Σ h_i · P_i
+ *   shared   = b_scan · A_sum    (1 ECDH)
+ *   t_k      = H_tag(TAG_T, sharedX || ser32BE(k)) mod N
+ *   P_k_m    = (B_spend + tweak_m·G) + t_k·G,
+ *              tweak_m = H_tag(TAG_label, b_scan || ser32BE(m)) mod N (m=0 → 0)
+ *
+ * @param scanPrivHex - b_scan, 32 bytes hex
+ * @param spendPubHex - B_spend, 33 bytes compressed hex (UNLABELED)
+ * @param inputs      - [{ pubkey, outpointTxidBE, outpointVout }]
+ * @param labels      - optional label indices to scan; m=0 implicit
+ * @param scriptSet   - optional Set<string> of on-chain P2PKH output scripts
+ *                      (lowercased hex, "76a914<h160>88ac"). When supplied,
+ *                      drives strict GAP-limit per label and emits only matches.
+ * @param maxK        - cap on k when scriptSet is not supplied (default GAP+1).
+ * @returns           - [{ addr, pub, c, k, m }]
+ */
+function stealthDeriveAggregated(
+  scanPrivHex: HexString,
+  spendPubHex: HexString,
+  inputs: any[],
+  labels: number[] = [],
+  scriptSet: Set<string> | null = null,
+  maxK: number = GAP + 1,
+) {
+  const sharedXBuf = stealthSharedX(scanPrivHex, inputs);
+  if (!sharedXBuf) return [];
+
+  const ms = precomputeLabeledSpends(scanPrivHex, spendPubHex, labels);
+  const results: any[] = [];
+
+  if (scriptSet) {
+    // Strict GAP-limit per label, on-chain matched.
+    const miss: Record<number, number> = {};
+    for (const sm of ms) miss[sm.m] = 0;
+    let live = ms.length;
+    const HARD_CAP = 4096;
+    for (let k = 0; live > 0 && k < HARD_CAP; k++) {
+      const tBig = hashToScalar(hTagShared(Buffer.concat([sharedXBuf, ser32BE(k)])));
+      if (tBig === 0n) continue;
+      const [tx, ty] = pointMul(tBig);
+      for (const sm of ms) {
+        if (miss[sm.m] >= GAP) continue;
+        const [sx, sy] = pointAdd(sm.X, sm.Y, tx, ty);
+        if (sx === 0n && sy === 0n) { miss[sm.m] = GAP; live--; continue; }
+        const stealthPub = compressPoint(sx, sy);
+        const h160 = hash160(Buffer.from(stealthPub, 'hex')).toString('hex');
+        const script = '76a914' + h160 + '88ac';
+        if (scriptSet.has(script)) {
+          results.push({
+            addr: hash160ToCashAddr(Buffer.from(h160, 'hex')),
+            pub: stealthPub,
+            c: tBig.toString(16).padStart(64, '0'),
+            k, m: sm.m,
+          });
+          miss[sm.m] = 0;
+        } else {
+          miss[sm.m] += 1;
+          if (miss[sm.m] >= GAP) live--;
+        }
+      }
+    }
+  } else {
+    // Bounded mode: emit candidates for k = 0..maxK-1 across all labels.
+    // Used by indexer scan where on-chain script set is fetched later.
+    for (let k = 0; k < maxK; k++) {
+      const tBig = hashToScalar(hTagShared(Buffer.concat([sharedXBuf, ser32BE(k)])));
+      if (tBig === 0n) continue;
+      const [tx, ty] = pointMul(tBig);
+      for (const sm of ms) {
+        const [sx, sy] = pointAdd(sm.X, sm.Y, tx, ty);
+        if (sx === 0n && sy === 0n) continue;
+        const stealthPub = compressPoint(sx, sy);
+        const h160 = hash160(Buffer.from(stealthPub, 'hex'));
+        results.push({
+          addr: hash160ToCashAddr(h160),
+          pub: stealthPub,
+          c: tBig.toString(16).padStart(64, '0'),
+          k, m: sm.m,
+        });
+      }
+    }
   }
   return results;
 }
 
 /**
- * Compute stealth spending key: p = (spend_priv + c) mod N
+ * Compute stealth spending key:
+ *   spendPriv_out = ( b_spend + tweak_m + t_k ) mod N
+ * For unlabeled (m=0) this reduces to ( b_spend + t_k ) mod N.
  */
-function stealthSpendingKey(spendPrivHex, cHex) {
+function stealthSpendingKey(spendPrivHex: HexString, cHex: HexString, tweakMHex: HexString = '00') {
   const b = BigInt('0x' + spendPrivHex);
   const c = BigInt('0x' + cHex);
-  const p = (b + c) % N;
+  const tm = BigInt('0x' + (tweakMHex || '0'));
+  const p = (((b + tm) % N) + c) % N;
   return p.toString(16).padStart(64, '0');
 }
 
@@ -623,12 +745,19 @@ function httpGet(url) {
 }
 
 /**
- * Scan a block range via the pubkey indexer API — BIP352 aggregated ECDH.
- * Groups entries by txid, aggregates input pubkeys → 1 ECDH per TX.
- * Returns candidates for all derived stealth outputs (caller checks on-chain).
+ * Scan a block range via the pubkey indexer API — final spec aggregated ECDH.
+ * Groups entries by txid, weights by per-input H_tag, 1 ECDH per TX.
+ * Returns candidates for every (k, m) up to GAP+1 (caller verifies on-chain
+ * via listunspent, then re-runs detect_payment / GAP-limit scan for the
+ * authoritative match).
+ *
+ * Privacy note: this endpoint MUST be either your own indexer or accessed
+ * over Tor. A third-party indexer can fingerprint a scanning client (this
+ * is scan-mode C from the spec; see RECEIVER section).
  */
 async function scanIndexer(params) {
   const { scanPriv, spendPub, fromHeight, toHeight, indexerUrl } = params;
+  const labels: number[] = Array.isArray(params.labels) ? params.labels : [];
   const base = indexerUrl || 'https://0penw0rld.com/api';
   const batchSize = 50;
   const candidates = [];
@@ -656,11 +785,11 @@ async function scanIndexer(params) {
         });
       }
 
-      // BIP352: 1 ECDH per TX
+      // 1 ECDH per TX. Without on-chain output set here, emit candidates
+      // for k = 0..GAP for every requested label; caller verifies.
       for (const [txid, inputs] of txMap) {
         try {
-          const derived = stealthDeriveAggregated(scanPriv, spendPub, inputs);
-          // Push k=0 result (most common). Also push k>0 if multiple outputs expected.
+          const derived = stealthDeriveAggregated(scanPriv, spendPub, inputs, labels, null, GAP + 1);
           for (const d of derived) {
             candidates.push({
               txid,
@@ -669,6 +798,8 @@ async function scanIndexer(params) {
               addr: d.addr,
               pub: d.pub,
               c: d.c,
+              k: d.k,
+              m: d.m,
             });
           }
         } catch { /* skip invalid TX */ }
@@ -722,13 +853,15 @@ function detectPayment(params) {
     }
   } catch { return results; }
 
-  // BIP352: aggregate all inputs → derive outputs k=0,1,2
+  // Final spec: 1 ECDH per TX, GAP-limit scan over k for each requested label.
   try {
-    const derived = stealthDeriveAggregated(scanPriv, spendPub, inputs);
+    const labels: number[] = Array.isArray(params.labels) ? params.labels : [];
+    const scriptSet = new Set(outputs.map(o => o.script.toLowerCase()));
+    const derived = stealthDeriveAggregated(scanPriv, spendPub, inputs, labels, scriptSet);
     for (const d of derived) {
       const h160 = hash160(Buffer.from(d.pub, 'hex')).toString('hex');
       const expectedScript = '76a914' + h160 + '88ac';
-      const matchIdx = outputs.findIndex(o => o.script === expectedScript);
+      const matchIdx = outputs.findIndex(o => o.script.toLowerCase() === expectedScript);
       if (matchIdx !== -1) {
         results.push({
           vin: 0, // aggregated — no single input
@@ -738,9 +871,10 @@ function detectPayment(params) {
           pub: d.pub,
           c: d.c,
           k: d.k,
+          m: d.m,
         });
       }
-      if (matchIdx === -1 && d.k > 0) break; // no match for k > 0 → stop
+      if (false) break; // GAP-limit handled inside stealthDeriveAggregated
     }
   } catch { /* math error */ }
 
@@ -780,23 +914,32 @@ function bip32Child(parentPriv, parentChain, index, hardened = false) {
   };
 }
 
-function deriveBip352Keys(masterPriv, masterChain) {
+/**
+ * Derive scan/spend keys at m/352'/145'/<account>'/{0',1'}/0
+ * The hardened gates at {0',1'} provide the scan/spend isolation the rest
+ * of the protocol assumes.
+ *
+ * @param account - BIP-44-style account index, default 0. Used for fully
+ *                  independent stealth codes (burner identities).
+ */
+function deriveBip352Keys(masterPriv, masterChain, account: number = 0) {
   // m/352' (hardened)
   const n352 = bip32Child(masterPriv, masterChain, 352, true);
   // m/352'/145' (hardened)
   const n145 = bip32Child(n352.priv, n352.chain, 145, true);
-  // m/352'/145'/0' (hardened)
-  const n0 = bip32Child(n145.priv, n145.chain, 0, true);
-  // m/352'/145'/0'/0' (spend chain, hardened)
-  const spendChain = bip32Child(n0.priv, n0.chain, 0, true);
-  // m/352'/145'/0'/0'/0 (spend key, non-hardened)
+  // m/352'/145'/<account>' (hardened)
+  const nAcct = bip32Child(n145.priv, n145.chain, account | 0, true);
+  // m/352'/145'/<account>'/0' (spend chain, hardened)
+  const spendChain = bip32Child(nAcct.priv, nAcct.chain, 0, true);
+  // m/352'/145'/<account>'/0'/0 (spend key, non-hardened)
   const spendKey = bip32Child(spendChain.priv, spendChain.chain, 0, false);
-  // m/352'/145'/0'/1' (scan chain, hardened)
-  const scanChain = bip32Child(n0.priv, n0.chain, 1, true);
-  // m/352'/145'/0'/1'/0 (scan key, non-hardened)
+  // m/352'/145'/<account>'/1' (scan chain, hardened)
+  const scanChain = bip32Child(nAcct.priv, nAcct.chain, 1, true);
+  // m/352'/145'/<account>'/1'/0 (scan key, non-hardened)
   const scanKey = bip32Child(scanChain.priv, scanChain.chain, 0, false);
 
   return {
+    account,
     spendPriv: spendKey.priv,
     spendPub: privToPub(spendKey.priv),
     scanPriv: scanKey.priv,
@@ -827,25 +970,27 @@ async function main() {
   try {
     switch (action) {
       case 'derive_keys':
-        // params: { masterPriv, masterChain } — from BIP32 master root
-        result = deriveBip352Keys(params.masterPriv, params.masterChain);
+        // params: { masterPriv, masterChain, account? } — from BIP32 master root
+        result = deriveBip352Keys(params.masterPriv, params.masterChain, params.account || 0);
         break;
 
       case 'derive_keys_from_seed': {
-        // params: { seed } — BIP39 mnemonic phrase
+        // params: { seed, account? } — BIP39 mnemonic phrase
         // Derive BIP32 master key from seed via PBKDF2 + HMAC-SHA512
         const crypto = require('crypto');
         const seedBytes = crypto.pbkdf2Sync(params.seed, 'mnemonic', 2048, 64, 'sha512');
         const I = crypto.createHmac('sha512', 'Bitcoin seed').update(seedBytes).digest();
         const masterPrivHex = I.subarray(0, 32).toString('hex');
         const masterChainHex = I.subarray(32).toString('hex');
-        result = deriveBip352Keys(masterPrivHex, masterChainHex);
+        result = deriveBip352Keys(masterPrivHex, masterChainHex, params.account || 0);
         break;
       }
 
       case 'derive_keys_from_account': {
         // params: { acctPrivHex, acctChainHex } — from m/44'/145'/0' account node
-        // Fallback: derive at /2'/0 (scan) and /2'/1 (spend) — NOT BIP352
+        // Fallback: derive at /2'/0 (scan) and /2'/1 (spend) — NOT the canonical
+        // stealth path. Paycode will differ from seed-based derivation. Only used
+        // when no seed is available (e.g. xprv-imported wallets).
         const stChain = bip32Child(params.acctPrivHex, params.acctChainHex, 2, true);  // /2' hardened
         const scanChild = bip32Child(stChain.priv, stChain.chain, 0, false);   // /2'/0
         const spendChild = bip32Child(stChain.priv, stChain.chain, 1, false);  // /2'/1
@@ -853,30 +998,44 @@ async function main() {
           scanPriv: scanChild.priv, scanPub: privToPub(scanChild.priv),
           spendPriv: spendChild.priv, spendPub: privToPub(spendChild.priv),
           paycode: makePaycode(privToPub(scanChild.priv), privToPub(spendChild.priv)),
-          warning: 'Account-level derivation (not BIP352). Paycode differs from seed-based derivation.',
+          warning: 'Account-level derivation (non-canonical). Paycode differs from seed-based derivation.',
         };
         break;
       }
 
       case 'derive_keys_raw':
-        // params: { rawPrivKey } — SHA256 domain separation fallback
-        const scanSeed = sha256(Buffer.concat([Buffer.from('bch-stealth-scan'), Buffer.from(params.rawPrivKey, 'hex')]));
-        const spendSeed = sha256(Buffer.concat([Buffer.from('bch-stealth-spend'), Buffer.from(params.rawPrivKey, 'hex')]));
-        const scanPriv = scanSeed.toString('hex');
-        const spendPriv = spendSeed.toString('hex');
-        result = {
-          scanPriv, scanPub: privToPub(scanPriv),
-          spendPriv, spendPub: privToPub(spendPriv),
-          paycode: makePaycode(privToPub(scanPriv), privToPub(spendPriv)),
-        };
+        // Forbidden by spec. Raw-key import would re-derive both scan and
+        // spend from the same external secret and defeat the {0',1'}
+        // hardened-gate scan/spend isolation. Wallets MUST use the BIP-32
+        // seed-based derivation above.
+        result = { error: 'raw-key import is not supported (defeats scan/spend isolation). Use derive_keys_from_seed.' };
         break;
 
       case 'make_paycode':
-        result = { paycode: makePaycode(params.scanPub, params.spendPub) };
+        // params: { scanPub, spendPub, scanPriv?, label? }
+        // If scanPriv and a non-zero label m are provided, returns the labeled
+        // stealth code with B_spend_m = B_spend + tweak_m·G.
+        if (params.scanPriv && params.label && (params.label | 0) > 0) {
+          const tw = labelTweakMod(params.scanPriv, params.label | 0);
+          const spendPubM = applyLabelToSpendPub(params.spendPub, tw);
+          result = {
+            paycode: makePaycode(params.scanPub, spendPubM),
+            label: params.label | 0,
+            spendPubM,
+            tweakM: tw.toString(16).padStart(64, '0'),
+          };
+        } else {
+          result = { paycode: makePaycode(params.scanPub, params.spendPub), label: 0 };
+        }
         break;
 
       case 'parse_paycode':
         result = parsePaycode(params.paycode);
+        break;
+
+      case 'label_tweak':
+        // params: { scanPriv, label } — returns tweak_m hex.
+        result = { tweakM: labelTweakMod(params.scanPriv, params.label | 0).toString(16).padStart(64, '0') };
         break;
 
       case 'derive_address': {
@@ -897,25 +1056,26 @@ async function main() {
             if (!smallest || outpoint.compare(smallest) < 0) smallest = outpoint;
           }
 
-          // 3. a_tweaked = Σ h_i · a_i  mod N  where h_i = SHA256(smallest_outpoint || A_i)
-          //    Equivalent to receiver's  Σ h_i · A_i  scaled by a single b_scan.
-          let a_tweaked = 0n;
+          // 3. a_sum = Σ h_i · a_i  mod N,  h_i = H_tag(TAG_H, op_min || P_i)
+          //    Equivalent to receiver's Σ h_i · P_i scaled by a single b_scan.
+          let a_sum = 0n;
           for (let i = 0; i < senderScalars.length; i++) {
-            const h = sha256(Buffer.concat([smallest, Buffer.from(senderPubHex[i], 'hex')]));
-            const hBig = BigInt('0x' + h.toString('hex')) % N;
-            a_tweaked = (a_tweaked + (hBig * senderScalars[i])) % N;
+            const hBig = hashToScalar(hTagInputs(Buffer.concat([smallest, Buffer.from(senderPubHex[i], 'hex')])));
+            a_sum = (a_sum + (hBig * senderScalars[i])) % N;
           }
-          if (a_tweaked === 0n) throw new Error('aggregate scalar is zero');
+          if (a_sum === 0n) throw new Error('aggregate scalar is zero');
 
-          // 4. shared = a_tweaked · B_scan
+          // 4. shared = a_sum · B_scan  (single ECDH for the whole tx)
           const [scanX, scanY] = decompressPoint(params.recipScanPub);
-          const [sharedX] = pointMul(a_tweaked, scanX, scanY);
+          const [sharedX] = pointMul(a_sum, scanX, scanY);
           const sharedXBuf = Buffer.from(sharedX.toString(16).padStart(64, '0'), 'hex');
 
-          // 5. t_0 = SHA256(sharedX || 0), P_0 = B_spend + t_0 × G
-          const kBuf = Buffer.alloc(4); kBuf.writeUInt32LE(0);
-          const t = sha256(Buffer.concat([sharedXBuf, kBuf]));
-          const tBig = BigInt('0x' + t.toString('hex')) % N;
+          // 5. t_k = H_tag(TAG_T, sharedX || ser32BE(k)),  P_k = recipSpendPub + t_k·G
+          //    recipSpendPub is whatever the payer parsed from the stealth
+          //    code on the wire — it already equals B_spend_m for the
+          //    receiver's chosen label. Sender does not need to know m.
+          const kIdx = (params.k | 0) || 0;
+          const tBig = hashToScalar(hTagShared(Buffer.concat([sharedXBuf, ser32BE(kIdx)])));
           const [spendX, spendY] = decompressPoint(params.recipSpendPub);
           const [tweakX, tweakY] = pointMul(tBig);
           const [stealthX, stealthY] = pointAdd(spendX, spendY, tweakX, tweakY);
@@ -924,6 +1084,7 @@ async function main() {
             addr: hash160ToCashAddr(hash160(Buffer.from(stealthPub, 'hex'))),
             pub: stealthPub,
             c: tBig.toString(16).padStart(64, '0'),
+            k: kIdx,
           };
         } else {
           // Legacy single-input
@@ -933,8 +1094,17 @@ async function main() {
       }
 
       case 'spending_key':
-        // params: { spendPriv, c }
-        result = { key: stealthSpendingKey(params.spendPriv, params.c) };
+        // params: { spendPriv, c, tweakM?, scanPriv?, label? }
+        // Final spec: spendPriv_out = (b_spend + tweak_m + t_k) mod N.
+        // tweakM can be passed directly (hex); or derived on-the-fly from
+        // (scanPriv, label). Unlabeled (m=0) → tweak_m = 0.
+        {
+          let twHex = params.tweakM || '0';
+          if (!params.tweakM && params.scanPriv && (params.label | 0) > 0) {
+            twHex = labelTweakMod(params.scanPriv, params.label | 0).toString(16);
+          }
+          result = { key: stealthSpendingKey(params.spendPriv, params.c, twHex) };
+        }
         break;
 
       case 'detect_payment':
@@ -1002,8 +1172,8 @@ async function main() {
           privToPub: testPub,
           paycode: testPaycode,
           parsed: testParsed,
-          version: '1.0.0',
-          protocol: '00 Protocol (BIP352)',
+          version: '2.0.0',
+          protocol: 'BCH Stealth Protocol (final spec, BIP-340 tagged hashes)',
         };
         break;
 
